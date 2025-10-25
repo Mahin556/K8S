@@ -1,0 +1,41 @@
+apiVersion: apps/v1           # API version for Deployment
+kind: Deployment              # Deployment resource type
+metadata:
+  name: my-app-deployment     # Name of the Deployment
+  labels:
+    app: my-app
+spec:
+  replicas: 3                 # Number of Pods to run
+  selector:
+    matchLabels:
+      app: my-app             # Must match template.metadata.labels
+  template:
+    metadata:
+      labels:
+        app: my-app
+    spec:
+      containers:
+      - name: my-app-container        # Container name
+        image: my-app-image           # Docker image to use
+        ports:
+        - containerPort: 80           # Port exposed by container
+        env:
+        # Example of a normal environment variable
+        - name: DATABASE_HOST
+          value: db.example.com       # Static value, safe for non-sensitive info
+
+        # Example of an environment variable coming from a Secret
+        - name: API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: my-secret         # Secret name
+              key: api-key            # Key inside the Secret
+
+        # Optional: you could also use ConfigMaps for non-sensitive config(if change occure then restart pod required)
+        # - name: APP_MODE
+        #   valueFrom:
+        #     configMapKeyRef:
+        #       name: my-config
+        #       key: mode
+
+# https://spacelift.io/blog/kubernetes-deployment-yaml

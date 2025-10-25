@@ -1,0 +1,25 @@
+apiVersion: apps/v1             # API version for Deployment
+kind: Deployment                # Resource type: Deployment ensures Pods are managed
+metadata:
+  name: example-deployment      # Name of the Deployment
+  labels:
+    app: example                # Labels for identification and selection
+spec:
+  replicas: 10                  # Number of Pod instances to run
+                                # Kubernetes ensures 10 Pods are always running
+  selector:
+    matchLabels:
+      app: example              # Selector to match Pods created by this Deployment
+                                # MUST match template.metadata.labels
+  template:                     # Pod template: defines what Pods look like
+    metadata:
+      labels:
+        app: example            # Pod labels; must match Deployment selector
+    spec:
+      containers:               # PodSpec: container definitions
+      - name: example-container  # Container name (unique inside Pod)
+        image: nginx:latest     # Docker image to use
+        ports:
+        - containerPort: 80     # Container port exposed to the cluster
+
+# https://spacelift.io/blog/kubernetes-deployment-yaml

@@ -1,0 +1,54 @@
+apiVersion: apps/v1             # API version for Deployment
+kind: Deployment                # Resource type: Deployment ensures Pods are created & managed
+metadata:
+  name: nginx-deployment        # Name of the Deployment
+  labels:
+    app: nginx                  # Labels for identification and selection
+spec:
+  replicas: 3                   # Number of Pod instances to run
+  selector:
+    matchLabels:
+      app: nginx                # Selector to match Pods created by this Deployment
+  template:                     # Pod template: defines what Pods will look like
+    metadata:
+      labels:
+        app: nginx              # Pod labels; must match Deployment selector
+    spec:
+      containers:
+      - name: nginx             # Container name (unique in Pod)
+        image: nginx:latest     # Docker image to use
+        ports:
+        - containerPort: 80     # Port exposed by container
+
+        # -----------------------------
+        # Liveness Probe
+        # -----------------------------
+        # Checks whether the container is still alive
+        # If probe fails, Kubernetes restarts the container
+        livenessProbe:
+          httpGet:
+            path: /             # HTTP path to check
+            port: 80            # Port to access
+          initialDelaySeconds: 15  # Wait 15 seconds before starting the first check
+          periodSeconds: 10        # Check every 10 seconds
+          timeoutSeconds: 2        # Timeout for each check
+          failureThreshold: 3      # Restart container after 3 consecutive failures
+          successThreshold: 1      # Mark healthy after 1 successful check
+
+        # -----------------------------
+        # Readiness Probe
+        # -----------------------------
+        # Checks whether the container is ready to serve traffic
+        # If probe fails, Pod is marked as NotReady, and Service won’t send traffic
+        readinessProbe:
+          httpGet:
+            path: /             # HTTP path to check
+            port: 80            # Port to access
+          initialDelaySeconds: 5   # Wait 5 seconds before starting the first check
+          periodSeconds: 5         # Check every 5 seconds
+          timeoutSeconds: 2        # Timeout for each check
+          failureThreshold: 3      # Mark NotReady after 3 consecutive failures
+          successThreshold: 1      # Mark Ready after 1 successful check
+        # -----------------------------
+
+# https://spacelift.io/blog/kubernetes-deployment-yaml

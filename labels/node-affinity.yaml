@@ -1,0 +1,34 @@
+#More flexible than selectors. Supports hard and soft rules.
+#Example: Prefer frontend nodes, fallback to backend nodes.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend-app
+spec:
+  selector:
+    matchLabels:
+      app: frontend
+  template:
+    metadata:
+      labels:
+        app: frontend
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: app
+                    operator: In
+                    values:
+                      - frontend
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 1
+              preference:
+                matchExpressions:
+                  - key: app
+                    operator: In
+                    values:
+                      - backend
+
+### Reference:- https://labex.io/tutorials/kubernetes-how-to-assign-and-manage-custom-labels-on-kubernetes-nodes-415736

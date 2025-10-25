@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  creationTimestamp: null
+  labels:
+    app: nginx-new
+  name: nginx-new
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: nginx-new
+  strategy: {}
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: nginx-new
+    spec:
+      containers:
+      - image: nginx:1.9.1
+        name: nginx
+        ports:
+        - containerPort: 80
+        resources: {}
+      nodeName: worker01.server.vm
+status: {}

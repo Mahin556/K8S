@@ -1,0 +1,73 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: web-server-pod
+spec:
+  initContainers:
+  - name: init-myservice
+    image: busybox:1.28
+    command: ['sh', '-c', 'echo "Init container started!"']
+  containers:
+  - name: web-server
+    image: nginx:latest
+    ports:
+    - containerPort: 80
+    volumeMounts:
+    - name: shared-data
+      mountPath: /usr/share/nginx/html
+    - name: secret-volume
+      mountPath: /etc/my-secret
+    - name: configmap-volume
+      mountPath: /etc/config
+    securityContext:
+      capabilities:
+        add: ["NET_ADMIN", "SYS_TIME"]
+    resources:
+      requests:
+        memory: "64Mi"
+        cpu: "250m"
+      limits:
+        memory: "128Mi"
+        cpu: "500m"
+    readinessProbe:
+      httpGet:
+        path: /index.html
+        port: 80
+      initialDelaySeconds: 5
+      periodSeconds: 5
+    livenessProbe:
+      httpGet:
+        path: /index.html
+        port: 80
+      initialDelaySeconds: 15
+      periodSeconds: 20
+    startupProbe:
+      httpGet:
+        path: /index.html
+        port: 80
+      failureThreshold: 30
+      periodSeconds: 10
+    lifecycle:
+      postStart:
+        exec:
+          command: ["/bin/sh", "-c", "echo 'PostStart'"]
+      preStop:
+        exec:
+          command: ["/bin/sh", "-c", "echo 'PreStop'"]
+  serviceAccountName: nginx-service-account   
+  securityContext:                        
+    runAsUser: 1000
+    runAsGroup: 3000
+    fsGroup: 2000
+  shareProcessNamespace: true
+  volumes:
+  - name: shared-data
+    emptyDir: {}
+  - name: secret-volume
+    secret:
+      secretName: nginx-secret
+  - name: configmap-volume
+    configMap:
+      name: nginx-configmap
+
+# https://devopscube.com/kubernetes-pod/

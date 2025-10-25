@@ -1,0 +1,50 @@
+apiVersion: apps/v1                # API version for Deployment
+kind: Deployment                   # Deployment resource type
+metadata:
+  name: nginx-deployment            # Name of the Deployment
+  labels:
+    app: nginx                      # Labels for identification & selection
+spec:
+  replicas: 3                       # Number of Pods to run
+  selector:
+    matchLabels:
+      app: nginx                    # Selector must match Pod template labels
+  template:
+    metadata:
+      labels:
+        app: nginx                  # Pod labels; required to match selector
+    spec:
+      affinity:                     # Affinity rules to influence Pod scheduling
+        # -----------------------------
+        # Node Affinity
+        # -----------------------------
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:   # Hard requirement for scheduling
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: node-type       # Node label key to match
+                operator: In        # Operator: Pod scheduled on nodes with this label value
+                values:
+                - nginx-node        # Node must have label node-type=nginx-node
+        # -----------------------------
+        # Pod Anti-Affinity
+        # -----------------------------
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:   # Hard requirement
+          - labelSelector:           # Select Pods to avoid colocating
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - nginx            # Avoid scheduling with other nginx Pods
+            topologyKey: "kubernetes.io/hostname"  # Ensure anti-affinity is applied per node
+      containers:
+      - name: nginx-container
+        image: nginx:latest
+        ports:
+        - containerPort: 80
+
+# It will avoid the allocation of pod if the node does not have the label node-type=nginx-node.
+# It will also avoid placing multiple nginx Pods on the same node, spreading them across nodes.
+
+# https://spacelift.io/blog/kubernetes-deployment-yaml

@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-deployment
+  labels:
+    app: nginx
+  annotations:
+    kubernetes.io/change-cause: "Updated nginx version to 1.21.6"
+spec:
+  replicas: 3
+  strategy:
+    type: Recreate #Used when downtime is acceptable
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.21.6
+        ports:
+        - containerPort: 80
+
+# Terminate all existing pods before creating new ones
+# Use when application cannot handle multiple versions running simultaneously
+
+# Used in Development and Testing environments not in production
+# Simpler and faster than RollingUpdate strategy
+

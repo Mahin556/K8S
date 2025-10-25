@@ -1,0 +1,16 @@
+spec:
+  template:
+    spec:
+      containers:
+        - name: my-app
+          image: my-app-image:latest
+          volumeMounts:
+            - name: test-storage
+              mountPath: /data  # Directory where your app writes data
+
+      volumes:
+        - name: test-storage
+          persistentVolumeClaim:
+            claimName: test-pvc  # PVC that binds to your PV
+
+### References- https://devopscube.com/kubernetes-deployment-tutorial/

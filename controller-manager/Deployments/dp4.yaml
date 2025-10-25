@@ -1,0 +1,36 @@
+apiVersion: apps/v1             # API version for Deployment
+kind: Deployment                # Resource type: Deployment ensures Pods are created & managed
+metadata:
+  name: nginx-deployment        # Name of the Deployment
+  labels:
+    app: nginx                  # Labels for identification & selection
+spec:
+  replicas: 3                   # Number of Pod instances to run
+  selector:
+    matchLabels:
+      app: nginx                # Selector to match Pods created by this Deployment
+  template:                     # Pod template: defines Pods that Deployment will create
+    metadata:
+      labels:
+        app: nginx              # Labels on Pods; must match Deployment selector
+    spec:
+      containers:               # PodSpec: container definitions
+      - name: nginx             # Container name (unique in Pod)
+        image: nginx:latest     # Docker image to use
+        ports:
+        - containerPort: 80     # Port exposed by container
+        resources:              # Resource requests and limits
+          requests:             # Initial resources requested by the container
+            memory: "128Mi"    # Memory requested (Pod scheduler uses this to decide placement)
+            cpu: "100m"        # CPU requested (100 milliCPU = 0.1 CPU core)
+          limits:               # Maximum resources container is allowed to use
+            memory: "256Mi"    # Max memory
+            cpu: "200m"        # Max CPU (200 milliCPU = 0.2 CPU core)
+
+                               # If container exceeds CPU limit, it may be throttled.
+                               # If container exceeds memory limit, it may be OOMKilled (terminated).
+                               # Prevents a single Pod from consuming too many resources on a node.
+                               # Helps cluster autoscaler and scheduler make better placement decisions.
+                               # Improves stability of multi-tenant clusters.
+
+# https://spacelift.io/blog/kubernetes-deployment-yaml

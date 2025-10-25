@@ -1,0 +1,44 @@
+---
+apiVersion: v1                  # API version for core resources like PVC
+kind: PersistentVolumeClaim      # Defines a request for storage
+metadata:
+  name: my-pvc                  # Name of the PVC; referenced in Deployment
+spec:
+  accessModes:
+    - ReadWriteOnce             # Pod can mount this volume in read-write mode
+  resources:
+    requests:
+      storage: 1Gi              # Request 1 GiB of storage
+  # storageClassName: standard  # Optional: specify a storage class
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-deployment
+  labels:
+    app: nginx
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: nginx              # Selector must match pod labels
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:latest
+        ports:
+        - containerPort: 80
+        volumeMounts:
+        - name: data           # Mount the volume defined in 'volumes' section
+          mountPath: /usr/share/nginx/html  # Path inside container
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: my-pvc     # Reference the PVC created earlier
+
+# https://spacelift.io/blog/kubernetes-deployment-yaml

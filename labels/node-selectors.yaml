@@ -1,0 +1,19 @@
+#Ensure pods are placed on nodes with a specific label.
+#This pod will only run on nodes labeled app=frontend.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend-app
+spec:
+  selector:
+    matchLabels:
+      app: frontend
+  template:
+    metadata:
+      labels:
+        app: frontend
+    spec:
+      nodeSelector:
+        app: frontend
+
+### Reference:- https://labex.io/tutorials/kubernetes-how-to-assign-and-manage-custom-labels-on-kubernetes-nodes-415736

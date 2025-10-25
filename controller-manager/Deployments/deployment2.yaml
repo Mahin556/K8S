@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata: 
+  name: demo-dp
+  labels:
+    ENV: prod
+  namespace: default
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      ENV: prod
+  template:
+    metadata:
+      name: demo-pod
+      labels:
+        ENV: prod
+    spec:
+      containers:
+        - name: demo-con
+          image: nginx:alpine
