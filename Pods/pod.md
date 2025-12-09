@@ -35,7 +35,43 @@ kubectl run hazelcast --image=hazelcast/hazelcast --port=5701
 kubectl run hazelcast --image=hazelcast/hazelcast --labels="app=hazelcast,env=prod"
 
 # Start a nginx pod, but overload the spec with a partial set of values parsed from JSON
-kubectl run nginx --image=nginx --overrides='{ "apiVersion": "v1", "spec": { ... } }'
+kubectl run nginx \
+  --image=nginx \
+  --overrides='{
+    "apiVersion": "v1",
+    "spec": {
+      "containers": [
+        {
+          "name": "nginx",
+          "image": "nginx:1.29"
+        }
+      ]
+    }
+  }'
+
+kubectl run nginx \
+  --image=nginx \
+  --overrides='{
+    "apiVersion": "v1",
+    "spec": {
+      "containers": [
+        {
+          "name": "nginx",
+          "image": "nginx:1.29"
+        },
+        {
+          "name": "nginx1",
+          "image": "nginx",
+          "ports": [
+            {
+              "containerPort": 81
+            }
+          ]
+        }
+      ]
+    }
+  }'
+
 
 # Start a busybox pod and keep it in the foreground, don't restart it if it exits
 kubectl run -i -t busybox --image=busybox --restart=Never
