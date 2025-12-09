@@ -76,29 +76,6 @@ kubectl run nginx \
 # Start a busybox pod and keep it in the foreground, don't restart it if it exits
 kubectl run -i -t busybox --image=busybox --restart=Never
 
-kubectl run example \
-  --image=busybox \
-  --restart=Never \
-  --dry-run=client -o yaml \
-  --overrides='{
-    "apiVersion": "batch/v1",
-    "kind": "Job",
-    "spec": {
-      "ttlSecondsAfterFinished": 30,
-      "template": {
-        "spec": {
-          "containers": [
-            {
-              "name": "example",
-              "image": "busybox",
-              "command": ["sh","-c","sleep 30"]
-            }
-          ],
-          "restartPolicy": "Never"
-        }
-      }
-    }
-  }'
 
 
 # Start the nginx pod using the default command, but use custom arguments (arg1 .. argN) for that command
