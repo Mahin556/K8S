@@ -6,14 +6,26 @@
 kubectl label [--overwrite] (-f FILENAME | TYPE NAME) KEY_1=VAL_1 ... KEY_N=VAL_N [--resource-version=version]
 ```
 
-- Update pod 'foo' with the label 'unhealthy' and the value 'true'
+- View labels
+```bash
+kubectl get pod --show-labels
+kubectl get nodes --show-labels
+kubectl get pod nginx --show-labels
 ```
+
+- Update pod 'foo' with the label 'unhealthy' and the value 'true'
+```bash
 kubectl label pods foo unhealthy=true
+kubectl label pod nginx app=web
+kubectl label deployment myapp tier=frontend
+kubectl label node worker1 env=prod
+kubectl label namespace dev team=backend
 ```
 
 - Update pod 'foo' with the label 'status' and the value 'unhealthy', overwriting any existing value
 ```
 kubectl label --overwrite pods foo status=unhealthy
+kubectl label pod nginx app=web --overwrite
 ```  
 
 - Update all pods in the namespace
@@ -34,6 +46,8 @@ kubectl label pods foo status=unhealthy --resource-version=1
 - Update pod 'foo' by removing a label named 'bar' if it exists Does not require the --overwrite flag
 ```
 kubectl label pods foo bar-
+kubectl label pod nginx app-
+kubectl label deployment myapp tier-
 ```
 
 - Apply label to all resources of that type.
@@ -65,6 +79,12 @@ kubectl label pods foo role=db --field-manager=my-script
 ```
 --field-selector
 kubectl label pods --field-selector status.phase=Running owner=team1
+kubectl label pods -l app=web version=v2 --overwrite
+```
+
+- Label multiple resource at once
+```bash
+kubectl label pods pod1 pod2 pod3 env=dev
 ```
 
 - Apply labels from a file/directory/URL.
@@ -140,19 +160,19 @@ kubectl label pods foo app=db --kubeconfig=/path/config
 ```
 
 - Run as another user
-```
+```bash
 --as
 kubectl label pods foo owner=team --as admin
 ```
 
 - Specify API server
-```
+```bash
 -s, --server
 kubectl label pods foo zone=us-east -s https://my-api:6443
 ```
 
-- others
-```
+- Others
+```bash
 kubectl label nodes <node-name> app=frontend
 
 kubectl label nodes -l node-role.kubernetes.io/worker=true app=backend
@@ -163,8 +183,16 @@ kubectl label nodes <node-name> app=database --overwrite
 
 kubectl label nodes <node-name> app-
 
-```
+#Scaling a deployment with app=web label
+kubectl get pods -l app=web
+kubectl get pods -l 'env in (prod,dev)'
 
+#Scaling a deployment with app=web label
+kubectl scale deployment -l app=web --replicas=5
+
+kubectl patch pod nginx -p '{"metadata": {"labels": {"env": "prod"}}}'
+kubectl patch pod nginx -p '{"metadata": {"labels": {"env": null}}}'
+```
 
 ### References
 - https://kubernetes.io/docs/reference/kubectl/generated/kubectl_label/
