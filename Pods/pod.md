@@ -82,9 +82,10 @@ kubectl run -i -t busybox --image=busybox --restart=Never
 kubectl run nginx --image=nginx -- <arg1> <arg2> ... <argN>
 
 kubectl get -f ./pod.yaml
+kubectl apply -f ./demo/
 
 # Start the nginx pod using a different command and custom arguments
-kubectl run nginx --image=nginx --command -- <cmd> <arg1> ... <argN>
+kubectl run nginx --image=nginx -- <cmd> <arg1> ... <argN>
 
 kubectl get pod/example-pod1 replicationcontroller/example-rc1
 
@@ -104,7 +105,7 @@ kubectl delete replicaset <name> -n <namespace> #Delete a ReplicaSet (if needed)
 
 kubectl exec -it <pod> -- /bin/sh
 
-kubectl top pod
+kubectl top pod #metrix server should be deployed
 
 kubectl port-forward <pod> 8080:80
 
