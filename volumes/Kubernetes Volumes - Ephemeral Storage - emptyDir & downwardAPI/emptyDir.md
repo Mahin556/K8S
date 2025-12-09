@@ -940,3 +940,12 @@ Events:
   Warning  Evicted    40s    kubelet            Usage of EmptyDir volume "ram-cache" exceeds the limit "100Mi".
   Normal   Killing    40s    kubelet            Stopping container app
 ```
+User (India)
+   |
+   | long-distance request
+   v
+Origin Server (USA)
+   |
+   | long-distance response
+   v
+User

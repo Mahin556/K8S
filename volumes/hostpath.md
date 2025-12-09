@@ -1,10 +1,8 @@
 ### References:
 - [Day 27: Kubernetes Volumes | Persistent Storage | PV, PVC, StorageClass, hostPath DEMO](https://www.youtube.com/watch?v=C6fqoSnbrck&ab_channel=CloudWithVarJosh)
 - [Kubernetes Documentation on hostPath](https://kubernetes.io/docs/concepts/storage/volumes/#hostpath).
-- Mounts a directory from the node directly into the pod.
-- Primarily used for testing or simple workloads.
-- In-tree only; there is no CSI implementation.
-- **Caution:** Unsuitable for production due to security risks(malicious) and lack of scheduling guarantees.
+- https://spacelift.io/blog/kubernetes-persistent-volumes
+
 
 ---
 
@@ -28,6 +26,10 @@
   * Accessing host binaries (mount /usr/bin or /bin/docker)
   * Mount /var/run/docker.sock → Pod can control Docker daemon
 
+- Mounts a directory from the node directly into the pod.
+- Primarily used for testing or simple workloads.
+- In-tree only; there is no CSI implementation.
+- **Caution:** Unsuitable for production due to security risks(malicious) and lack of scheduling guarantees.
   
 * **Why is it Used?**  
   * It is used for scenarios such as debugging, accessing host-level files (logs, configuration files), or sharing specific host resources with containers.
@@ -153,6 +155,11 @@ kubectl exec -it hostpath-example -- sh -c 'echo "Hey you!!" > /data'
 Kubernetes supports several `hostPath` volume types that define how paths on the host are managed. For detailed information on supported types such as `Directory`, `File`, `Socket`, and `BlockDevice`, refer to the official documentation:
 
 [Kubernetes Documentation - hostPath Volume Types](https://kubernetes.io/docs/concepts/storage/volumes/#hostpath-volume-types)
+
+* The hostPath field tells Kubernetes where on the Node’s filesystem the data should be stored when using a hostPath volume.
+* Kubernetes will store the PV’s data inside /tmp/demo-pv on the Node.
+* The storage driver (hostPath provisioner) will create or use this directory.
+* This directory is on the physical filesystem of the Node.
 
 ---
 

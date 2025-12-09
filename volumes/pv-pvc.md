@@ -5,12 +5,14 @@
 - [Kubernetes Persistent Volumes](https://kubernetes.io/docs/concepts/storage/persistent-volumes/)  
 - [Kubernetes Storage Classes](https://kubernetes.io/docs/concepts/storage/storage-classes/)  
 - [CSI Documentation](https://kubernetes-csi.github.io/docs/)
-
+- https://spacelift.io/blog/kubernetes-persistent-volumes
 ---
 
 ![Alt text](/images/27c.png)
 
-* Applications often require storage to persist data, ensuring it remains intact even if pods are restarted. Kubernetes provides **Persistent Volumes (PV)** and **Persistent Volume Claims (PVC)** to manage this storage.
+* Applications often require storage to persist data, ensuring it remains intact even if pods are restarted or terminated. 
+* Kubernetes provides **Persistent Volumes (PV)** and **Persistent Volume Claims (PVC)** to manage this storage.
+* Most of the application(mostly stateful application such as databases or file servers) that run in kubernetes required persistent storage which is enable by PV, PVC, SC.
 
 ### Steps to Mount a Persistent Volume
 
@@ -21,13 +23,20 @@
 ---
 
 ### **Persistent Volumes (PVs)**
+  - K8S object.
   - A PV is a piece of storage in your cluster that has been provisioned either manually by an administrator or dynamically using Storage Classes.
-  - Logical Abstraction over a physical storage.
+  - Logical Abstraction over a physical storage:
+    - NFS
+    - AWS EBS
+    - Azure Disk
+    - GCE Persistent Disk
+    - Ceph
+    - Local disk
   - PVs exist independently of Pod lifecycles and can be reused or retained even after the Pod is deleted. They have properties such as **capacity, access modes, and reclaim policies**.
 
 ### **Persistent Volume Claims (PVCs)**
- 
-  - A PVC is a request for storage by a user. It functions similarly to how a Pod requests compute resources. When a PVC is created, Kubernetes searches for a PV that meets the claim's requirements.
+  - K8S object.
+  - A PVC is a request for storage by a user. It functions similarly to how a Pod requests compute resources. When a PVC is created, Kubernetes searches for a PV that meets the claim's requirements or SC creates a PV with the requitements specify in the PVC specification.
   - **Binding Process:**  
     1. **Administrator:** Provisions PVs (or sets up Storage Classes for dynamic provisioning).  
     2. **Developer:** Creates a PVC in the Pod specification requesting specific storage attributes.  
@@ -119,13 +128,18 @@ PV ---> automate ---> Storage Classes
   - **In-tree drivers** (legacy; e.g., `awsElasticBlockStore`, `azureDisk`)
   - **CSI drivers** (modern; e.g., `ebs.csi.aws.com`, `azurefile.csi.azure.com`)
 
-> In many cases, developers are well-versed with Kubernetes and can handle the creation of **PersistentVolumeClaims (PVCs)** themselves. With the introduction of **StorageClasses**, the process of provisioning **PersistentVolumes (PVs)** has been **automated**—eliminating the need for Kubernetes administrators to manually coordinate with storage admins and pre-create PVs. When a PVC is created with a **StorageClass**, Kubernetes **dynamically provisions** the corresponding PV. We’ll explore StorageClasses in detail shortly.
+> In many cases, developers are well-versed with Kubernetes and can handle the creation of **PersistentVolumeClaims (PVCs)** themselves. With the introduction of **StorageClasses**, the process of provisioning **PersistentVolumes(PVs)** has been **automated**—eliminating the need for Kubernetes administrators to manually coordinate with storage admins and pre-create PVs. When a PVC is created with a **StorageClass**, Kubernetes **dynamically provisions** the corresponding PV. We’ll explore StorageClasses in detail shortly.
 
 ---
 
 #### **Access Modes in Kubernetes Persistent Volumes**
 
-Persistent storage in Kubernetes supports various access modes that dictate how a volume can be mounted. Access modes essentially govern how the volume is mounted across **nodes**, which is critical in clustered environments like Kubernetes.
+Persistent storage in Kubernetes supports various access modes that dictate how a volume can be mounted by Pods and Nodes. Access modes essentially govern how the volume is mounted across **nodes**, which is critical in clustered environments like Kubernetes.
+
+These access modes determine:
+  * Whether a volume is read-only or read-write
+  * Whether it can be mounted by one Pod or many
+  * Whether multiple Nodes can access it simultaneously
 
 once ---> block storage
 many ---> file storage
@@ -135,14 +149,23 @@ many ---> file storage
 
 | **Access Mode**          | **Description**                                                                                          | **Example Use Case**                                            | **Type of Storage & Examples** |
 |--------------------------|----------------------------------------------------------------------------------------------------------|----------------------------------------------------------------|--------------------------------|
-| **ReadWriteOnce (RWO)**  | The volume can be mounted as read-write by a **single node**. Multiple Pods can access it **only if** they are on the same node. | Databases that require exclusive access but may run multiple replicas per node.  | **Block Storage** (e.g., Amazon EBS, GCP Persistent Disk, Azure Managed Disks) |
-| **ReadOnlyMany (ROX)**   | The volume can be mounted as **read-only** by **multiple nodes** simultaneously.                        | Sharing static data like configuration files or read-only datasets across multiple nodes. | **File Storage** (e.g., NFS, Azure File Storage) |
-| **ReadWriteMany (RWX)**  | The volume can be mounted as **read-write** by **multiple nodes** simultaneously.                       | Content management systems, shared data applications, or log aggregation. | **File Storage** (e.g., Amazon EFS, Azure File Storage, On-Prem NFS) |
+| **ReadWriteOnce (RWO)**  | The volume can be mounted as read-write by a **single node**. Multiple Pods can access it **only if** they are on the same node. | Databases that require exclusive access but may run multiple replicas per node. Databases, single-node apps, workloads tied to a specific Node.  | **Block Storage** (e.g., Amazon EBS, GCP Persistent Disk, Azure Managed Disks) |
+| **ReadOnlyMany (ROX)**   | The volume can be mounted as **read-only** by **multiple nodes** simultaneously.                        | Sharing static data like configuration files or read-only datasets across multiple nodes, package repositories. | **File Storage** (e.g., NFS, Azure File Storage) |
+| **ReadWriteMany (RWX)**  | Volume can be mounted on multiple Nodes, all with read-write access, Allows true shared storage across Pods and Nodes.                     | Content management systems, shared data applications, or log aggregation, Multi-replica apps needing shared state,NFS, CephFS, EFS, Azure Files, etc. | **File Storage** (e.g., Amazon EFS, Azure File Storage, On-Prem NFS) |
 | **ReadWriteOncePod (RWOP)** (Introduced in v1.29) | The volume can be mounted as read-write by **only one Pod across the entire cluster**.                 | Ensuring exclusive access to a volume for a single Pod, such as in tightly controlled workloads. | **Block Storage** (e.g., Amazon EBS with `ReadWriteOncePod` enforcement) |
 
 ---
 
 While there are exceptions, block storage is typically designed for single-system access, offering low-latency performance ideal for databases and high-throughput applications. On the other hand, file storage is generally intended for shared access across multiple systems, making it suitable for collaborative environments and workloads that require concurrent access. However, it's important to note that in some cases, block storage may be shared, and file storage may be used by a single system based on specific architecture or application needs.
+
+| Storage Type            | Supported Modes | Notes                             |
+| ----------------------- | --------------- | --------------------------------- |
+| **hostPath**            | RWO             | Node-local only; dev/test use     |
+| **local volumes**       | RWO             | High-performance node-local       |
+| **NFS**                 | RWO, ROX, RWX   | True shared storage               |
+| **CephFS**              | RWO, ROX, RWX   | Distributed filesystem            |
+| **iSCSI / FC**          | RWO             | Block storage                     |
+| **CSI Drivers (Cloud)** | Varies          | Depends on driver (AWS/GCP/Azure) |
 
 ---
 
@@ -634,7 +657,24 @@ A **Storage Class** in Kubernetes is a way to define different storage configura
 
 - **Purpose**: Storage Classes define storage backends and their parameters, such as disk types, reclaim policies, and binding modes.  
 - **Dynamic Provisioning**: When a Persistent Volume Claim (PVC) is created, Kubernetes uses the referenced Storage Class to automatically provision a corresponding PV.  
-- **Flexibility**: Multiple Storage Classes can coexist in a Kubernetes cluster, allowing administrators to tailor storage types for varying application needs (e.g., high-performance SSDs, low-cost storage, etc.).
+- **Flexibility**: 
+  - Multiple Storage Classes can coexist in a Kubernetes cluster, allowing administrators to tailor storage types for varying application needs (e.g., high-performance SSDs, low-cost storage, etc.).
+  - Diff SC for diff vendors/providers, storage types.
+
+---
+
+* Defaults
+```bash
+controlplane:~$ kubectl get sc
+NAME                   PROVISIONER             RECLAIMPOLICY   VOLUMEBINDINGMODE      ALLOWVOLUMEEXPANSION   AGE
+local-path (default)   rancher.io/local-path   Delete          WaitForFirstConsumer   false                  28d
+
+# In Minikube there is built-in storage class standard.
+$ kubectl get storageclass
+NAME                 PROVISIONER                RECLAIMPOLICY   VOLUMEBINDINGMODE   ALLOWVOLUMEEXPANSION   AGE
+standard (default)   k8s.io/minikube-hostpath   Delete          Immediate           false                  7d2h
+```
+
 
 ---
 
@@ -764,6 +804,29 @@ spec:
 - The `WaitForFirstConsumer` binding mode optimizes placement and ensures resources like EBS volumes and Pods are aligned in multi-AZ environments.  
 - By combining Storage Classes, PVCs, and dynamic provisioning, Kubernetes provides a powerful and flexible storage solution for managing workloads efficiently. 
 
+---
+```yaml
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: fast-storage
+provisioner: kubernetes.io/aws-ebs
+parameters:
+  type: gp2
+reclaimPolicy: Delete
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: dynamic-pvc
+spec:
+  storageClassName: fast-storage
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+```
 
 ---
 
@@ -1030,3 +1093,896 @@ By following these steps, you can understand how dynamic provisioning works in K
 | **Example Services** | Amazon EFS, Azure Files      | AWS EBS, Google Persistent Disk | AWS S3, Azure Blob, MinIO         |
 
 ---
+
+#### Troubleshooting Persistent Storage
+* PVC Pending
+  * No matching PV
+  * Wrong StorageClass
+  * Insufficient storage size
+* Pod stuck in ContainerCreating
+  * PVC not Bound
+    * Use:
+      ```bash
+      kubectl describe pod <pod>
+      ```
+---
+
+Below is **the complete, crystal-clear guide** to **CloudFront Custom Error Pages** — including **concept**, **use cases**, **all HTTP codes supported**, **step-by-step GUI configuration**, **infrastructure behavior**, and **Terraform / CLI examples**.
+
+---
+
+# ✅ **What Are CloudFront Custom Error Pages?**
+
+CloudFront normally shows **its own default error pages** (ugly XML page) when:
+
+* Your **origin (S3/ALB/EC2)** sends an error
+* CloudFront **times out**
+* Permission issue
+* Missing file
+* Origin returns **HTTP 4xx or 5xx**
+
+Custom Error Pages allow you to **replace CloudFront’s default error pages with:**
+
+* A custom **HTML file**
+* A custom **fallback URL**
+* A specific **cache duration**
+* A custom **response code** sent to the client
+
+---
+
+# 🚀 **Why Use Custom Error Pages?**
+
+* Give friendly user-facing messages
+* Hide backend errors (security & UX)
+* Send branding instead of CloudFront XML page
+* Unified error handling across microservices
+* Redirect `/404.html`, `/503.html`, `/maintenance.html`
+
+---
+
+# 🔥 **Supported Error Codes**
+
+CloudFront can customize:
+
+| Error Type              | Codes                        |
+| ----------------------- | ---------------------------- |
+| **Client Errors (4xx)** | 400, 403, 404, 405, 414, 416 |
+| **Server Errors (5xx)** | 500, 501, 502, 503, 504      |
+
+---
+
+# 🧠 **How It Works Internally**
+
+Example:
+
+1. User hits `https://d111.cloudfront.net/page.html`
+2. Origin responds **404 Not Found**
+3. CloudFront detects this and checks **custom-error rules**
+4. If matched:
+
+   * CloudFront fetches `/errors/404.html` from your S3 origin
+   * CloudFront returns **either:**
+
+     * HTTP 404 **(original)** OR
+     * HTTP 200 **(custom response code)**
+
+---
+
+# 🛠 **STEP-BY-STEP: Create Custom Error Page (AWS Console)**
+
+### 1️⃣ Upload Custom Error HTML File
+
+If using **S3 origin**:
+
+Inside bucket, upload:
+
+```
+errors/404.html
+errors/503.html
+errors/maintenance.html
+```
+
+Make sure CloudFront OAC has access.
+
+---
+
+### 2️⃣ Go to CloudFront → Your Distribution → **Error Pages** → Create
+
+### Example #1 → Custom 404 Page
+
+```
+HTTP Error Code: 404
+Customize Error Response: Yes
+Response Page Path: /errors/404.html
+HTTP Response Code: 404
+TTL (seconds): 10       # how long to cache this error
+```
+
+### Example #2 → Maintenance Mode (503 → return 200)
+
+```
+HTTP Error Code: 503
+Customize Error Response: Yes
+Response Page Path: /maintenance.html
+HTTP Response Code: 200
+TTL: 300
+```
+
+---
+
+# 🍭 **Behavior Options Explained**
+
+### **Response Page Path**
+
+Where the custom page exists inside origin:
+
+```
+/errors/404.html
+/errors/5xx.html
+/maintenance/index.html
+```
+
+### **HTTP Response Code**
+
+| What you choose            | Meaning                                                   |
+| -------------------------- | --------------------------------------------------------- |
+| **Match Origin (default)** | Browser receives same error (404/503)                     |
+| **200 OK**                 | User sees error page but browser thinks request succeeded |
+| **302 Redirect**           | Redirect user to another path                             |
+
+### **Error Cache TTL**
+
+CloudFront caches errors too.
+
+```
+TTL = 0 → no caching (top correctness)
+TTL = 10–300 → good compromise
+TTL = 300+ → fast but stale
+```
+
+---
+
+# 🧪 **Testing Custom Error Pages**
+
+### Test 404
+
+```
+curl -I https://dxxxx.cloudfront.net/notfound.html
+```
+
+Look for:
+
+```
+X-Cache: Error from cloudfront
+```
+
+### Test maintenance `/503.html`
+
+Force maintenance from origin → CloudFront should serve `/maintenance.html`.
+
+---
+
+# 💡 Best Practices (Production)
+
+* Always configure **503 → maintenance.html**
+* Keep error pages in a dedicated folder `/errors/`
+* Use `"Response Code = 200"` for maintenance mode pages
+* Set low TTL during development (1–10 seconds)
+* Set higher TTL in prod (120–600 seconds)
+* Invalidate error pages after modifying them
+
+---
+
+# 🧰 Terraform Example (Full Block)
+
+Add inside `aws_cloudfront_distribution`:
+
+```hcl
+custom_error_response {
+  error_code            = 404
+  response_page_path    = "/errors/404.html"
+  response_code         = 404
+  error_caching_min_ttl = 10
+}
+
+custom_error_response {
+  error_code            = 503
+  response_page_path    = "/maintenance.html"
+  response_code         = 200
+  error_caching_min_ttl = 300
+}
+```
+
+---
+
+# 🔧 AWS CLI Example
+
+### Create 404 error rule
+
+```bash
+aws cloudfront update-distribution \
+  --id EXXXX \
+  --distribution-config file://dist.json \
+  --if-match E2XXXX
+```
+
+Inside JSON, include:
+
+```json
+"CustomErrorResponses": {
+  "Quantity": 1,
+  "Items": [
+    {
+      "ErrorCode": 404,
+      "ResponsePagePath": "/errors/404.html",
+      "ResponseCode": "404",
+      "ErrorCachingMinTTL": 10
+    }
+  ]
+}
+```
+
+---
+
+# 📦 Common Use Cases & Solutions
+
+### ✅ **Hosting single-page apps (React/Vue/Angular)**
+
+404 should route to `/index.html`:
+
+```
+404 → /index.html
+Response Code: 200
+```
+
+### ✅ **S3 private bucket – prevent XML errors**
+
+Replace S3 XML access denied with friendly HTML.
+
+### ✅ **Maintenance Window**
+
+```
+503 → /maintenance.html
+Return 200 OK
+```
+
+---
+
+# 🎉 If you want, I can provide:
+
+✔ A complete **CloudFront + S3 + OAC + Custom Error Pages** Terraform module
+✔ A real-world setup example for **SPA hosting**
+✔ A CloudFront **maintenance-mode toggle** script
+✔ A version with **multiple origins path-based routing + custom errors**
+
+Just tell me **what setup you want next**.
+
+
+
+---
+
+Nice — I’ll do two things in one answer:
+
+1. give a ready-to-run **Python Flask application** (implements the same endpoints & behaviour Gaurav demoed), with Dockerfile + run instructions;
+2. explain **every concept from the transcript** (CloudFront + app interactions, caching, headers, origin protection, pagination, cache-key, TTLs, testing) in clear, compact bullet points so you can use it as a reference.
+
+No fluff — everything practical and copy-paste ready.
+
+---
+
+* Flask app: single-file `app.py` implementing:
+
+  * `/` simple health
+  * `/1m` returns dynamic UUID and `Cache-Control: max-age=60`
+  * `/2m` same but `max-age=120`
+  * `/users` paginated JSON (query params `page`, `size`)
+  * `/custom-header` requires a specific header (example `Request-From: CloudFront-Head`) — returns 403 if missing
+  * adds a dynamic `X-Request-UUID` on each response so you can see cache hits/misses
+* Dockerfile + requirements so you can build and run in EC2 (or locally) exactly like the video.
+
+```python
+# app.py
+from flask import Flask, request, jsonify, abort, make_response
+import uuid
+import time
+
+app = Flask(__name__)
+
+# sample users dataset
+USERS = [{"id": i+1, "name": f"user_{i+1}"} for i in range(22)]
+
+def make_uuid():
+    return str(uuid.uuid4())[:8]
+
+@app.route("/")
+def index():
+    uid = make_uuid()
+    resp = make_response({"message": "Hello from API", "uuid": uid})
+    resp.headers["X-Request-UUID"] = uid
+    return resp
+
+@app.route("/1m")
+def one_min():
+    uid = make_uuid()
+    body = {"msg": "1 minute cache endpoint", "uuid": uid, "ts": int(time.time())}
+    resp = make_response(jsonify(body))
+    # Cache-Control max-age expressed in seconds (CloudFront/browser will use this unless CF overrides)
+    resp.headers["Cache-Control"] = "max-age=60, public"
+    resp.headers["X-Request-UUID"] = uid
+    return resp
+
+@app.route("/2m")
+def two_min():
+    uid = make_uuid()
+    body = {"msg": "2 minute cache endpoint", "uuid": uid, "ts": int(time.time())}
+    resp = make_response(jsonify(body))
+    resp.headers["Cache-Control"] = "max-age=120, public"
+    resp.headers["X-Request-UUID"] = uid
+    return resp
+
+@app.route("/users")
+def users():
+    # pagination: default page=1, size=5
+    try:
+        page = int(request.args.get("page", "1"))
+        size = int(request.args.get("size", "5"))
+    except ValueError:
+        page = 1; size = 5
+    if page < 1: page = 1
+    if size < 1: size = 5
+
+    start = (page - 1) * size
+    end = start + size
+    subset = USERS[start:end]
+    resp_body = {
+        "page": page,
+        "size": size,
+        "total": len(USERS),
+        "users": subset,
+        "uuid": make_uuid()
+    }
+    resp = make_response(jsonify(resp_body))
+    # Control caching for this endpoint (example: don't cache by default)
+    resp.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    resp.headers["X-Request-UUID"] = resp_body["uuid"]
+    return resp
+
+@app.route("/custom-header")
+def custom_header():
+    # Expect CloudFront to attach header "Request-From: CloudFront-Head"
+    allowed_value = "CloudFront-Head"
+    header_val = request.headers.get("Request-From")
+    if header_val != allowed_value:
+        # deny direct access from browser / external clients
+        abort(make_response(jsonify({"error": "Forbidden - missing required header"}), 403))
+    body = {"msg": "Accessed via CloudFront", "uuid": make_uuid()}
+    resp = make_response(jsonify(body))
+    resp.headers["Cache-Control"] = "max-age=30, public"
+    resp.headers["X-Request-UUID"] = body["uuid"]
+    return resp
+
+# helpful endpoint to inspect headers received by origin
+@app.route("/inspect-headers")
+def inspect_headers():
+    headers = {k:v for k,v in request.headers.items()}
+    headers["X-Request-UUID"] = make_uuid()
+    return jsonify(headers)
+
+if __name__ == "__main__":
+    # listen on 0.0.0.0 so EC2/public IP can be used
+    app.run(host="0.0.0.0", port=3000)
+```
+
+```dockerfile
+# Dockerfile
+FROM python:3.11-slim
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+COPY app.py .
+EXPOSE 3000
+CMD ["gunicorn", "--bind", "0.0.0.0:3000", "app:app", "--workers", "2", "--threads", "4"]
+```
+
+`requirements.txt`:
+
+```
+Flask==2.2.5
+gunicorn==20.1.0
+```
+
+* Build & run locally or on EC2:
+
+  * `docker build -t cloudfront-sample-api:latest .`
+  * `docker run -d -p 3000:3000 --name cf-api cloudfront-sample-api:latest`
+  * Test: `curl http://<EC2_PUBLIC_IP>:3000/1m` and `curl http://<EC2_PUBLIC_IP>:3000/users?page=2&size=3`
+
+---
+
+* CloudFront <-> App concepts (detailed, practical):
+
+  * `Cache-Control` header:
+
+    * this header returned by your origin tells browsers and caches (including CloudFront) how long content is fresh.
+    * `Cache-Control: max-age=60` → 60 seconds freshness. CloudFront will treat this as TTL unless CloudFront cache policy overrides it (see below).
+    * use `no-cache` / `no-store` for dynamic endpoints you never want cached.
+
+  * CloudFront TTLs & Cache Policy:
+
+    * CloudFront caching behavior is controlled by distribution *Cache Behavior* + optional *Cache Policy*.
+    * three TTLs in CF: `Minimum TTL`, `Maximum TTL`, `Default TTL`.
+    * CloudFront obeys `Cache-Control` from origin when `Cache Policy` set to "Use origin cache headers" (or when you forward origin headers appropriately).
+    * if you choose "Cache based on origin" CF will use the origin `Cache-Control`; otherwise CF's TTLs can override or be used.
+
+  * Cache hits vs misses:
+
+    * On first request CF edge asks origin → **MISS**; origin response gets cached at that edge.
+    * Subsequent requests within TTL → **HIT** (served from edge; origin not contacted).
+    * After TTL expires → next request is **MISS** again and CF fetches origin and caches new response.
+
+  * CloudFront cache key:
+
+    * defines what CF uses to differentiate cached objects (path + optionally query string + headers + cookies).
+    * if you need different cached responses for different query params (like `page`/`size`), you must include query strings in cache key (enable forwarding of query strings in behavior).
+    * if you want to treat `/users?page=1` and `/users?page=2` as the same cached object, *do not* forward query string — but that causes wrong results for paginated APIs.
+
+  * Forwarding query strings:
+
+    * for paginated API `/users?page=x&size=y` forward query strings so CF cache key includes them (Cache Behavior → "Forward query strings").
+    * beware: forwarding query strings multiplies cache items and increases edge storage/requests to origin.
+
+  * Forwarding headers:
+
+    * you may forward specific headers (e.g., `Request-From`) or choose to *whitelist* headers necessary to your app logic.
+    * forwarding many headers reduces cache efficiency (fewer cache hits).
+
+  * Origin custom headers:
+
+    * CloudFront supports adding an *Origin Custom Header* that CloudFront attaches to origin requests (configured on the origin).
+    * use this to protect your origin: have the origin require `Request-From: CloudFront-Head` and only accept requests containing that header.
+    * combine with security group rules that allow only CloudFront IP ranges or implement OAI/OAC for S3 origins.
+    * origin custom header example: name=`Request-From`, value=`CloudFront-Head` → app checks header, returns 403 if missing.
+
+  * Protect origin (practical options):
+
+    * security-group + CloudFront IP ranges (downloads from AWS JSON of IP ranges) — maintenance heavy.
+    * origin custom header + origin policy (works but header can be faked if someone talks directly to origin IP unless security-group restricts access).
+    * for S3 origins use **Origin Access Control (OAC)** or OAI to make bucket private and allow CF to access on your behalf.
+    * use ALB + WAF + check custom headers + origin SG to block direct access and accept only CloudFront.
+
+  * Cache-Control vs CloudFront TTL interplay:
+
+    * If you want origin to *define* TTL, use cache policy: **"Use origin cache headers"**.
+    * If you want CloudFront to control TTL regardless of origin headers, set CF TTLs explicitly in the behavior.
+    * Example: origin `Cache-Control: max-age=60` & CF default TTL=3600 will still often use origin header if "Use origin headers" is set; if CF default overrides, CF may keep cached object longer.
+
+  * Invalidations:
+
+    * If you update origin content and want CF edges to pick changes immediately, create an **invalidaton** for the paths (e.g., `/*` or `/index.html`).
+    * invalidations take time to propagate and have a cost (first 1000 invalidations per month usually free — check pricing).
+
+  * Custom error page:
+
+    * CloudFront can be configured to map HTTP 403/404/500 responses to custom error pages (from origin or S3).
+    * useful for user-friendly messages when geo-blocked or forbidden.
+
+  * Cache-Control best-practices for APIs:
+
+    * static assets: long `max-age`, use versioned filenames
+    * dynamic endpoints: `no-cache` or short `max-age`, unless you control content freshness
+    * paginated or query-based endpoints: forward query string and set appropriate caching (or no-cache)
+    * introduce ETag or Last-Modified for conditional requests (304 Not Modified) when possible
+
+  * Why CloudFront might appear to “misbehave” with query strings:
+
+    * CF caches by key — if query strings are not forwarded then `/users?page=1` and `/users?page=2` will return same cached content (wrong).
+    * fix by enabling query string forwarding in behavior and optionally selecting which query parameters to include.
+
+  * Headers & security:
+
+    * adding a check for `Request-From` in the app enforces that only requests forwarded by CF (that attach header) get processed.
+    * combine with SG restrictions: allow HTTP only from CloudFront IP ranges (or only allow ALB/ELB -> internal traffic).
+    * for stronger security, use OAuth, signed URLs, or signed cookies.
+
+  * Testing & debugging:
+
+    * Use browser DevTools → Network tab to inspect response headers:
+
+      * look for `X-Cache: Hit from cloudfront` or `Miss from cloudfront`
+      * inspect `Cache-Control`, `Age`, `X-Request-UUID`
+    * Use `curl -I` to inspect headers quickly:
+
+      * `curl -I https://<cloudfront-domain>/1m`
+    * To mimic CloudFront origin request header, `curl -H "Request-From: CloudFront-Head": "http://<origin>:3000/custom-header"`
+
+  * Pagination design:
+
+    * default `page=1` and `size=5` are good defaults
+    * ensure unchanged cache behavior: typically don't cache paginated endpoints unless keyed by page/size
+    * when caching, include `page` & `size` in cache key (CloudFront forwarding) so each page is cached separately
+
+  * Dynamic UUID behavior:
+
+    * each new origin request produces a new UUID — useful to demonstrate cache misses (origin called) vs hits (UUID unchanged served from edge)
+    * `X-Request-UUID` tells you origin-generated value — if it changes, the request reached origin; if same across requests within TTL, it was served from cache
+
+  * Deploy flow summary:
+
+    * launch EC2, open SG ports (22 SSH, 3000 or 80/443 depending)
+    * install Docker, build/pull image, run container
+    * create CloudFront distribution:
+
+      * origin → your EC2 public DNS or ALB
+      * cache behavior: set path patterns (`/api/*`, `/images/*`) with different cache policies
+      * for `/users` forward query string and set `Cache-Control` policy or no-cache
+      * set origin custom header `Request-From: CloudFront-Head`
+      * deploy distribution, then test via CF domain
+    * optionally lock down origin so only CloudFront can reach it (via SG or private origin + ALB and CF with OAC)
+
+  * Common pitfalls:
+
+    * forgetting to forward query strings for dynamic endpoints → wrong page served
+    * forwarding too many headers → low cache hit ratio
+    * relying on CloudFront TTL defaults inadvertently causing stale content
+    * not protecting origin → direct access bypasses CloudFront header check
+
+---
+
+* Quick cloudfront configuration checklist for this app:
+
+  * create behavior for `/1m`:
+
+    * Path pattern: `/1m`
+    * Cache policy: use origin headers (or default) → origin `max-age=60` will be used
+  * create behavior for `/2m`:
+
+    * similarly
+  * create behavior for `/users`:
+
+    * Path pattern: `/users*`
+    * Forward Query Strings: Yes
+    * Cache policy: `CachingDisabled` or `Origin` depending on needs
+  * create behavior for `/custom-header`:
+
+    * ensure CF origin custom header `Request-From: CloudFront-Head` is set on origin config
+    * optionally set `Cache-Control` short TTL
+  * origin settings:
+
+    * add custom header `Request-From: CloudFront-Head`
+    * if origin is EC2, tighten security group to limit access (for production prefer ALB + internal SG)
+
+---
+
+* Example `curl` tests:
+
+  * direct origin request (should fail `/custom-header`):
+
+    * `curl -i http://<EC2_IP>:3000/custom-header`
+    * expect `403 Forbidden`
+  * origin with header (simulate CloudFront):
+
+    * `curl -i -H "Request-From: CloudFront-Head: CloudFront-Head" http://<EC2_IP>:3000/custom-header`
+    * expect `200` + JSON
+  * via CloudFront, check cache:
+
+    * `curl -I https://<CF_DOMAIN>/1m` → get `Cache-Control: max-age=60` and `X-Cache: Miss from cloudfront` (first time)
+    * repeat `curl -I` quickly → `X-Cache: Hit from cloudfront` and `X-Request-UUID` same as previous
+
+---
+
+* Optional improvements you can implement quickly:
+
+  * add `ETag`/`Last-Modified` to endpoints to support conditional GETs and smaller responses (304 Not Modified)
+  * use `gunicorn` + `nginx` reverse proxy for production robustness
+  * switch to ALB behind CF to avoid exposing instance IP and allow internal-only origin
+  * deploy via Terraform for reproducible CF + origin setup
+
+---
+
+If you want, I can:
+
+* provide a ready-to-run `docker-compose.yml` that builds and runs the Flask app and a small Nginx (optional);
+* give the exact CloudFront GUI steps (or Terraform HCL) to create the distribution and add the origin custom header and cache behaviors;
+* generate sample `curl` commands and expected outputs for each scenario.
+
+Which of those would you like next?
+
+
+---
+
+
+Here is **EVERY concept explained in a clean, simple, structured, professional way** (based on the entire Hindi transcript you shared).
+
+I am giving you **all concepts in bullet points** (your preferred format), but very detailed and in perfect English — this will help you understand CloudFront + API behavior exactly like Gaurav explained.
+
+---
+
+# ✅ **COMPLETE CONCEPTS FROM THE VIDEO — EXPLAINED CLEANLY**
+
+---
+
+# **1. EC2 Application Behavior**
+
+Your backend EC2 application returns:
+
+* `/1m` → random UUID + cache headers for **60 seconds**
+* `/2m` → random UUID + cache headers for **120 seconds**
+* `/users` → paginated data (page & size supported)
+* `/custom-header` → only works when a specific custom header is received
+* Any direct access without the header → returns **403 Forbidden**
+
+This backend is built to **demonstrate caching, header validation, and query parameter behavior**.
+
+---
+
+# **2. CloudFront + Backend Interaction**
+
+When you put CloudFront in front of the EC2 API:
+
+* CloudFront **caches responses** based on the **cache-control** headers returned by your API.
+* CloudFront does **NOT** understand UUID changes — it will cache the old one until TTL expires.
+
+Example:
+
+* API sends:
+  `Cache-Control: public, max-age=60`
+* CloudFront caches the response for **60 seconds**
+* During those 60 seconds:
+  – Your EC2 returns NEW UUID every request
+  – CloudFront returns OLD UUID (cached)
+  → This is **expected behavior**.
+
+---
+
+# **3. Why CloudFront Shows Same UUID?**
+
+Because:
+
+* CloudFront caches the response using your backend headers.
+* A request first checks CloudFront's cache; if hit → responds directly.
+* Only after TTL expires → CloudFront fetches a new value from EC2.
+
+So CloudFront behaves exactly based on:
+
+* `Cache-Control` headers
+* `ETag` (if present)
+* Cache policy settings
+
+This concept is **origin cache TTL**.
+
+---
+
+# **4. "MISS FROM CloudFront" vs "HIT FROM CloudFront"**
+
+These appear in the response headers:
+
+* **MISS** → CloudFront forwarded request to EC2 (origin)
+* **HIT** → CloudFront served response from cache (faster)
+* **REFRESH_HIT** → cache refreshed due to TTL expiry
+
+This helps track caching behavior.
+
+---
+
+# **5. Adding Custom Header in CloudFront to Secure Your Backend**
+
+Your backend returns:
+
+* **403** if accessed directly
+* **200 OK** only if the request includes a specific header
+
+CloudFront Origin settings allow you to add headers to each request:
+
+Example:
+
+Header Name: `request-from`
+Value: `cloudfront-head`
+
+CloudFront → attaches header → Backend allows request
+Client/Browser → no header → Backend denies request
+
+This gives **origin-level security** without allowing public access.
+
+---
+
+# **6. Why EC2 Direct Access is Blocked**
+
+Backend checks for:
+
+```js
+if request.headers['request-from'] != 'cloudfront-head':
+    return 403
+```
+
+So:
+
+* Browser → no header → **blocked**
+* CloudFront → header injected → **allowed**
+
+This ensures **only CloudFront can access the backend**.
+
+---
+
+# **7. Example Use Case for This Security**
+
+This prevents:
+
+* direct API attacks
+* DDoS on EC2
+* bypassing CloudFront caching
+* avoiding geographic restrictions
+* hiding direct server IPs
+
+CloudFront becomes the **only allowed pathway**.
+
+---
+
+# **8. Query Parameter Problem (Pagination Issue)**
+
+Backend supports queries:
+
+```
+/users?page=1&size=5
+/users?page=3&size=2
+```
+
+But CloudFront DOES NOT forward query parameters unless you configure a **Cache Policy** that includes:
+
+* Query strings
+* Headers
+* Cookies (if needed)
+
+If query parameters are **not forwarded**, CloudFront sees all URLs as same:
+
+```
+/users       <-- CloudFront treats ALL as same
+/users?page=1
+/users?page=2
+/users?page=3
+```
+
+Meaning:
+
+* CloudFront always sends the **same cached response**
+* All `page` values return the same output → **wrong behavior**
+
+This is WHY pagination breaks.
+
+This exact problem will be fixed using a cache policy like:
+
+```
+QueryStringBehavior: all
+```
+
+---
+
+# **9. What must be configured to fix pagination?**
+
+You must configure CloudFront to:
+
+* **Forward Query Strings**
+* **Include Query Strings in Cache Key**
+
+Otherwise CloudFront will not differentiate pages.
+
+---
+
+# **10. Why CloudFront Must Be “Public” Initially**
+
+During explanation:
+
+* The instructor keeps EC2 public temporarily **to demonstrate behavior**
+* Later will restrict EC2 to **only allow CloudFront IPs**
+
+This is common while learning/testing.
+
+---
+
+# **11. Why CloudFront Deployment Takes 2–3 Minutes**
+
+Because CloudFront:
+
+* distributes configuration to **edge locations worldwide**
+* creates/update caches
+* syncs behavior rules globally
+* takes time to propagate
+
+This is called **CloudFront global propagation delay**.
+
+---
+
+# **12. CloudFront Cache Policies Were Used**
+
+You used a custom cache policy to:
+
+* respect origin cache-control headers
+* ensure CloudFront caches based on backend rules
+
+Cache policy determines:
+
+* TTL
+* Headers forwarded
+* Query params forwarded
+* Cookies forwarded
+* Cache key generation
+
+CloudFront caching behavior = **origin headers + CloudFront cache policy**.
+
+---
+
+# **13. Cache-Control Header Explanation**
+
+Backend sets:
+
+```
+Cache-Control: public, max-age=60
+```
+
+Meaning:
+
+* **public** → CDN (CloudFront) is allowed to cache
+* **max-age=60** → response valid for 60 seconds
+
+CloudFront strictly follows this.
+
+If backend uses:
+
+```
+Cache-Control: private
+```
+
+→ CloudFront will NOT cache at all.
+
+---
+
+# **14. Analytics Headers That CloudFront Adds**
+
+CloudFront adds useful headers such as:
+
+* `X-Cache: Hit from CloudFront`
+* `X-Cache: Miss from CloudFront`
+* `Via`
+* `Request-ID`
+
+These help track caching behavior.
+
+---
+
+# **15. Summary of the 3 Use Cases in the Video**
+
+### **Use Case 1 — Short/Long Caching**
+
+* `/1m` → cached 60 seconds
+* `/2m` → cached 120 seconds
+* CloudFront follows backend TTL.
+
+### **Use Case 2 — Custom Header Security**
+
+* CloudFront adds header → backend allows
+* Browser direct → denied
+* Prevents bypassing CloudFront.
+
+### **Use Case 3 — Query Parameter Issue**
+
+* Pagination breaks because CloudFront doesn’t forward query params
+* Requires a proper cache policy to forward & cache by params.
+
+---
+
+# ✔️ **If You Want — I Can Create the Perfect Python Flask Application Matching This Behavior**
+
+It will include:
+
+* `/1m`
+* `/2m`
+* `/users?page=…&size=…`
+* `/custom-header`
+* randomized UUID responses
+* cache-control headers exactly like video
+
+Would you like **100% working Flask code** for this demo?
+
+
+---
+
+
