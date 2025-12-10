@@ -59,6 +59,5 @@ ip a
 
 # Change hostname (only affects namespace)
 hostname new-container
+#Open top in another terminal to observe ~10% CPU usage
 ```
-# Open top in another terminal to observe ~10% CPU usage
-`
