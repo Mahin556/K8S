@@ -179,6 +179,12 @@ kubectl delete pods --all-namespaces --field-selector=status.phase=Succeeded,sta
 - Isolated environment
 - Package an application code with it runtime, dependencies, libraries and run it in a self-contained, isolated environment.
 - Container on host run/appear as a single process, but it can have multiple process running in it(but only one process will be main other will be child).
+- Inside the container, that main process (PID 1) can create more processes just like any normal Linux process.
+  - Example:
+    – Nginx starts multiple worker processes
+    – Apache starts child processes
+    – A shell script starts other commands
+    – Your application forks workers or threads
 - Each container gets and ip, shared volume, CPU and memory resources.
 - container is created using the linux kernel feature called namespaces and control groups(cgroup).  
 
