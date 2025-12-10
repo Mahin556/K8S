@@ -185,6 +185,12 @@ kubectl delete pods --all-namespaces --field-selector=status.phase=Succeeded,sta
     * Apache starts child processes
     * A shell script starts other commands
     * Your application forks workers or threads
+  * So inside the container, multiple processes may exist, but they are children of the main PID 1 process.
+    * Why “one main and others child”?
+    * Because Docker needs a single process as the entrypoint.
+    * The entrypoint becomes PID 1 inside the container.
+    * Any additional processes it spawns automatically become child processes.
+  • If the main PID 1 process exits, then the entire container stops, even if child processes are still alive. Because Docker considers the container finished when PID 1 finishes.
 - Each container gets and ip, shared volume, CPU and memory resources.
 - container is created using the linux kernel feature called namespaces and control groups(cgroup).  
 
