@@ -4,6 +4,8 @@
 - https://spacelift.io/blog/kubernetes-cheat-sheet
 - https://youtu.be/kvITrySpy_k
 - https://spacelift.io/blog/kubernetes-daemonset *
+- [Day 29: MASTER DaemonSet, Job & CronJob in Kubernetes](https://www.youtube.com/watch?v=gKbIkyE0TTI&ab_channel=CloudWithVarJosh)
+- DaemonSet: [https://kubernetes.io/docs/concepts/workloads/controllers/daemonset/](https://kubernetes.io/docs/concepts/workloads/controllers/daemonset/) 
 
 
 ---
@@ -19,25 +21,458 @@ kubectl rollout restart daemonset/<daemonset_name>
 kubectl rollout status daemonset/<daemonset_name>
 ```
 ---
+![Alt text](/images/29a.png)
 
-* A **DaemonSet** is a Kubernetes workload object that ensures a copy of a specific Pod runs on **all eligible (or some) nodes** in a cluster.
-* It is commonly used for **cluster-wide services** that need to run on every node, such as logging agents, monitoring agents, or networking daemons.
-* We use it when we need to run specific application on all nodes.
-* Native K8S Object
-* Can't not scale only run one pod on a node.
-* If the daemonset pod gets deleted from the node, the daemonset controller creates it again.
-* If there are 500 worker nodes and you deploy a daemonset, the daemonset controller will run one pod per worker node by default. That is a total of 500 pods. However, using nodeSelector, nodeAffinity, Taints, and Tolerations, you can restrict the daemonset to run on specific nodes.
-* For example, in a cluster of 100 worker nodes, one might have 20 worker nodes labeled GPU enabled to run batch workloads. And you should run a pod on those 20 worker nodes. In this case, you can deploy the pod as a Daemonset using a node selector.
+• When new nodes join the Kubernetes cluster, the **DaemonSet controller** automatically creates a Pod on each new node.
+
+• When a node is removed, Kubernetes automatically **garbage-collects (deletes)** the DaemonSet Pod that belonged to that node.
+
+• If you manually delete a Pod created by a DaemonSet, the DaemonSet controller will **immediately recreate** it to maintain the desired state.
+
+• If you delete the DaemonSet itself, Kubernetes will automatically **delete all Pods** that the DaemonSet had created.
+
+• You can control whether a DaemonSet should run on control-plane nodes using **tolerations + nodeSelector**.  
+  Example: kube-proxy runs on control-plane nodes because it includes the necessary tolerations.
+
+---
+
+### Static pod vs daemonsets
+* Static pod node-scoped, daemonsets provide cluster level control.
+* daemonsets --> scale in/out pod based on adding/removing of nodes.
+* static pod --> each node kubelet manage a pod independently.
+* to scale static pod we need to manally place a pod manifest into the kubelet monitored directory.
+
+
+------------------------------------------------------------
+### kube-proxy (DaemonSet)
+
+• Kube-proxy manages **Service → Pod networking**.  
+• It ensures traffic is routed only to **healthy Pods/nodes**.  
+• Kube-proxy rewrites the **destination IP** for packets when a request hits a Service, sending it to the correct Pod.
+
+------------------------------------------------------------
+### How traffic flows:
+
+Frontend Pod → accesses Service DNS name → CoreDNS resolves Service name → cluster IP → kube-proxy rewrites destination → forwards traffic to backend Pod
+
+------------------------------------------------------------
+
+### kube-proxy runs as a DaemonSet
+
+• Ensures 1 kube-proxy Pod per node  
+• Includes tolerations so it can also run on **control-plane nodes**  
+
+---
+
+### Common Use Cases for DaemonSets
+
+DaemonSets are used when you need a Pod to run on **every node** in the cluster, or on a specific group of nodes. They guarantee node-level coverage, something ReplicaSets cannot provide.
+Basically when you want to install any node level component.
+
+##### 1. Logging Agents (Node + Application Logs)
+  Run log collectors on every node so all container and system logs are shipped to a central logging backend.
+  Examples:
+  - Fluentd / Fluent Bit
+  - Logstash
+  - Splunk Forwarder
+  - Humio
+  - Filebeat
+
+##### 2. Monitoring Agents (Node-Level Metrics)
+  Deploy node-level monitoring exporters to gather CPU, memory, disk, and network metrics from every node.
+  Examples:
+  - Prometheus Node Exporter
+  - Datadog Agent
+  - New Relic Infrastructure Agent
+
+##### 3. Kubernetes System Components
+  Some core Kubernetes components run as DaemonSets.
+  Example:
+  - kube-proxy (handles service → pod networking and traffic routing)
+
+##### 4. Networking Plugins (CNI)
+  Network plugins must run on every node to set up routing rules, iptables, firewall configuration, or overlay networks.
+  Examples:
+  - Calico
+  - Flannel
+  - Weave
+  - Cilium
+
+##### 5. Security & Compliance Agents
+  Security tools that need node-level visibility run as DaemonSets.
+  Examples:
+  - Falco (runtime security)
+  - kube-bench (CIS benchmark scans)
+  - Intrusion detection systems
+  - Vulnerability scanners for PCI/PII-compliant nodes
+
+##### 6. Storage Plugins (CSI)
+  Storage drivers often require node components to be present everywhere.
+  Examples:
+  - CSI Node Plugin
+  - NFS/GFPP mount helpers
+  - Local PV provisioners
+
+##### 7. Specialized Hardware Nodes (GPU, FPGA)
+  DaemonSets can install drivers or system services only on specific nodes that match labels.
+  Examples:
+  - NVIDIA GPU drivers daemonset
+  - FPGA device plugins
+
+##### 8. Telemetry and Observability Collectors
+  Collectors that gather traces, events, and logs at the node level.
+  - Examples:
+    - OpenTelemetry Collector (DaemonSet mode)  
+
+
+##### Why Use DaemonSets?
+  - Ensures a Pod runs **on every node**
+  - Automatically schedules Pods on **new nodes** as they join
+  - Automatically removes Pods when nodes leave
+  - Useful for system-level services that support the entire cluster
+  - Guaranteed node coverage → **ReplicaSets cannot guarantee this**
+
+DaemonSets are ideal when you need consistent, reliable node-level functionality across the entire Kubernetes cluster.
+
+
+---
+
+### **DaemonSets We Have Already Seen: kube-proxy**
+
+We have actually been working with a DaemonSet since early in this course.
+
+- **Kube-proxy**, a critical system component responsible for **Service-to-Pod networking** inside the cluster.
+
+- **kube-proxy** is deployed as a **DaemonSet** in Kubernetes to ensure that **every node** has the necessary networking functionality.
+- You can verify this in your cluster using:
+
+```bash
+kubectl get daemonsets.apps -n kube-system kube-proxy
+kubectl get pods -n kube-system -o wide | grep -i kube-proxy
+```
+
+---
+
+### **DaemonSets for CNIs and CSIs**
+
+Most cloud-native networking (CNI) and storage (CSI) plugins are deployed using DaemonSets:
+
+- **CNI Plugins:**  
+  AWS VPC CNI, Azure CNI, Calico, Flannel, Cilium
+- **CSI Node Plugins:**  
+  AWS EBS CSI, AWS EFS CSI, GCP PD CSI, and others
+
+By deploying these plugins as DaemonSets, Kubernetes ensures that **every new or existing node** has the necessary networking and storage components running to handle Pod traffic, volume mounts, and attachments properly.
+
+---
+
+### **DaemonSets and Control Plane Nodes**
+
+**Will a DaemonSet run on the control plane node?**  
+The answer depends on the cluster setup:
+
+- In **cloud-managed Kubernetes** services (like EKS, GKE, AKS), the **control plane nodes are fully managed** and **isolated**.  
+  Therefore, **DaemonSets that you deploy for monitoring, logging, or security will not run on the control plane nodes**.
+
+- In a **self-managed cluster** (like a cluster created with kubeadm or KIND), **DaemonSets can run on control plane nodes** if:
+  - The control plane node has a **taint** (typically `node-role.kubernetes.io/control-plane:NoSchedule`), **and**
+  - The DaemonSet has a **toleration** allowing it to tolerate that taint.
+
+In our **KIND cluster**, we have three nodes:
+
+```bash
+kubectl get nodes
+```
+
+Output:
+
+```
+NAME                              STATUS   ROLES           AGE   VERSION
+my-second-cluster-control-plane   Ready    control-plane   40d   v1.31.4
+my-second-cluster-worker          Ready    <none>          40d   v1.31.4
+my-second-cluster-worker2         Ready    <none>          40d   v1.31.4
+```
+
+The **control plane node** (`my-second-cluster-control-plane`) has the following taint:
+
+```
+Taints: node-role.kubernetes.io/control-plane:NoSchedule
+```
+
+You can verify it by running:
+
+```bash
+kubectl describe node my-second-cluster-control-plane
+```
+
+Now, the `kube-proxy` DaemonSet has the following toleration:
+
+```yaml
+tolerations:
+  - operator: Exists
+```
+
+**What does it mean when `operator: Exists` is used without a `key`?**
+
+- **No key specified** means the pod **tolerates *any* taint on the node** — regardless of key, value, or taint source.
+- As long as the `effect` matches (or if no effect is specified, it tolerates any effect too), **the pod can be scheduled**.
+
+In kube-proxy's case:
+
+- kube-proxy must run on **all nodes** — control plane nodes, worker nodes, tainted nodes — everywhere.
+- Kubernetes can't predict what taints the nodes may have (some clusters are custom).
+- Instead of listing specific taint keys, kube-proxy's DaemonSet says:
+  > "I don't care what taints the node has. I need to run there anyway."
+
+---
+
+### **Key Takeaways**
+
+- A **DaemonSet** ensures that a specific Pod runs on **every node** in the cluster.
+- It automatically handles Pod scheduling on new nodes and cleans up Pods from removed nodes.
+- DaemonSets are heavily used for system-level components such as networking, storage, logging, monitoring, and security.
+- On **managed cloud clusters**, DaemonSets generally **do not run on control plane nodes**.
+- On **self-managed clusters**, DaemonSets **can run on control plane nodes** if appropriate **tolerations** are specified.
+
+
+---
+
+## **Demo: DaemonSet - Deploying a Dummy Logging Agent**
+
+In this demo, we will deploy a **dummy logging agent** across all nodes in our Kubernetes cluster using a **DaemonSet**.  
+The agent will simulate log collection by printing a message every 30 seconds.
+
+As a best practice, **system-level DaemonSets are typically deployed into their own dedicated namespace** for better organization and access control.
+
+---
+
+### **Step 1: Create a New Namespace for Logging**
+
+We will create a new namespace called `logging-ns` to isolate our DaemonSet:
+
+```bash
+kubectl create namespace logging-ns
+```
+
+---
+
+### **Step 2: Switch the Context to the New Namespace**
+
+To avoid typing `-n logging-ns` with every command, we will temporarily set the default namespace in our current context:
+
+```bash
+kubectl config set-context --current --namespace=logging-ns
+```
+
+This ensures that all our upcoming commands automatically target the `logging-ns` namespace.
+
+---
+
+### **Step 3: Apply the DaemonSet Manifest**
+
+Here’s the manifest (`ds.yaml`) for our dummy logging agent:
+
+```yaml
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: log-collector
+  namespace: logging-ns  # Best practice: Deploy system-level agents into a dedicated namespace for better management and isolation.
+  labels:
+    app: log-collector  # Label to identify the DaemonSet and its Pods.
+spec:
+  selector:
+    matchLabels:
+      app: log-collector  # Ensures Pods managed by this DaemonSet match this label.
+  template:
+    metadata:
+      labels:
+        app: log-collector  # Labels assigned to Pods created by this DaemonSet.
+    spec:
+      tolerations:
+        - key: "node-role.kubernetes.io/control-plane"
+          operator: "Exists"
+          effect: "NoSchedule"
+          # This toleration allows Pods created by this DaemonSet to be scheduled even on control-plane nodes,
+          # which are tainted by default with "NoSchedule" to block regular workloads.
+      containers:
+        - name: log-collector
+          image: busybox  # Using a lightweight busybox image to simulate a logging agent.
+          command: ["/bin/sh", "-c", "while true; do echo 'Collecting logs...'; sleep 30; done"]
+          # The container runs an infinite loop that prints a message every 30 seconds, simulating log collection behavior.
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "50Mi"
+              # Resource requests ensure the scheduler reserves at least this much CPU and memory for the container.
+            limits:
+              cpu: "100m"
+              memory: "100Mi"
+              # Resource limits prevent the container from consuming more than the specified amount of CPU and memory.
+          volumeMounts:
+            - name: varlog
+              mountPath: /var/log
+              # Mounts the host's /var/log directory into the container, simulating real-world log collection from the node.
+      volumes:
+        - name: varlog
+          hostPath:
+            path: /var/log
+            type: Directory
+            # A hostPath volume that provides direct access to the host machine’s /var/log directory.
+            # In production, instead of just echoing logs inside the container, a real logging agent (like Fluentd, Fluent Bit, or Filebeat)
+            # would collect logs from /var/log and ship them to a centralized destination such as:
+            # - A file storage server (e.g., NFS, EFS)
+            # - An object storage service (e.g., AWS S3, Google Cloud Storage)
+            # - A logging service (e.g., ElasticSearch, Loki, Splunk)
+            #
+            # This ensures logs are persisted, searchable, and available for audits, troubleshooting, and monitoring.
+
+```
+
+Apply the DaemonSet using:
+
+```bash
+kubectl apply -f ds.yaml
+```
+
+> **Note:**  
+> Here we are using a `hostPath` volume to simulate access to the node’s `/var/log` directory.  
+> **In production environments**, logs would typically be shipped to a **centralized file storage** (like NFS), an **object storage** (like AWS S3), or **streamed directly** to a logging platform (like ElasticSearch, Loki, or a cloud-native log service).
+
+---
+
+### **Step 4: Verify the DaemonSet**
+
+Check the DaemonSet status:
+
+```bash
+kubectl get daemonset
+```
+
+Describe the DaemonSet for more details:
+
+```bash
+kubectl describe daemonset log-collector
+```
+
+You should see that **one Pod is scheduled on every node** in the cluster.
+
+Additionally, you can confirm the Pod placement with:
+
+```bash
+kubectl get pods -o wide
+```
+
+Example output:
+
+```
+NAME                  READY   STATUS    RESTARTS   AGE   IP            NODE                              NOMINATED NODE   READINESS GATES
+log-collector-4krdf   1/1     Running   0          11m   10.244.1.26   my-second-cluster-worker          <none>           <none>
+log-collector-bzsln   1/1     Running   0          11m   10.244.2.43   my-second-cluster-worker2         <none>           <none>
+log-collector-nvvz4   1/1     Running   0          11m   10.244.0.5    my-second-cluster-control-plane   <none>           <none>
+```
+
+You can observe that **each node**, including the **control-plane node**, is running an instance of the log-collector Pod.  
+This is possible because **we added a toleration** for the `control-plane` taint in the DaemonSet spec.
+
+---
+
+### **Bonus Exercise: Observe DaemonSet Pod Re-Creation**
+
+To understand how the **DaemonSet controller** maintains the Pods:
+
+1. **Manually delete a Pod** created by the DaemonSet:
+
+```bash
+kubectl delete pod <pod-name>
+```
+
+2. Immediately run:
+
+```bash
+kubectl get pods -o wide
+```
+
+We can also delete the namespace:
+```bash
+kubectl delete namespace <namespace>
+```
+You will see that **Kubernetes automatically recreates the missing Pod** on the same node.
+
+> This demonstrates that the **DaemonSet controller constantly monitors the cluster** and ensures that **the desired state is maintained** — one Pod on every node.
+
+---
 
 ![](/images/image-4-44.png)
 ![image](https://github.com/piyushsachdeva/CKA-2024/assets/40286378/bb803dc2-f9ab-4fe3-a0bb-0eacdfcf3ce0)
 
-* Control plane component kube-proxy and CNI is run as daemonset.
-* DaemonSets automatically add a Pod to new nodes and remove it from deleted nodes.
-* Scheduling is done by the DaemonSet controller, not the default Kubernetes scheduler.
-* Node addition/removal:
-  - New nodes → Pod automatically added.
-  - Removed nodes → Pod automatically deleted.
+---
+
+### Scoping DaemonSets to Specific Nodes
+* DaemonSets don’t always need to run on every node.  
+* You can restrict them to run only on selected nodes using:
+  • `spec.template.spec.nodeSelector`  
+  • `spec.template.spec.affinity`  
+* Example: Fluentd DaemonSet restricted to nodes with log collection enabled:
+
+```bash
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: fluentd
+spec:
+  selector:
+    matchLabels:
+      name: fluentd
+  template:
+    metadata:
+      labels:
+        name: fluentd
+    spec:
+      nodeSelector:
+        log-collection-enabled: "true"
+      containers:
+      - name: fluentd-elasticsearch
+        image: quay.io/fluentd_elasticsearch/fluentd:latest
+
+Before applying the DaemonSet, label the node:
+  kubectl label node minikube-m02 log-collection-enabled=true
+Now apply the manifest:
+  kubectl apply -f fluentd.yaml
+Check the DaemonSet:
+  kubectl get daemonsets
+You’ll see DESIRED = 1 because only one node matches the selector.
+Confirm the Pod’s node placement:
+  kubectl get pod -o wide
+The Pod should be scheduled on the labeled node.
+```
+
+---
+
+### DaemonSet Best Practices
+```
+1. Use DaemonSets only when scaling follows node count:
+   If Pod count is independent of node count, use Deployments or ReplicaSets instead.
+
+2. DaemonSet Pods must use restartPolicy = Always 
+   Required so Pods come back when nodes reboot.
+
+3. Do not manually edit or delete DaemonSet Pods: 
+   The DaemonSet controller will recreate deleted Pods.  
+   Manual modification can cause inconsistencies.
+
+4. Use rollbacks to revert DaemonSet updates quickly:  
+   Rollouts and rollbacks provide safer, more reliable changes for system services.
+
+5. Apply proper resource requests/limits and security context:  
+   Important since DaemonSets often run critical system-level agents.
+
+6. Use node labels and affinity rules to precisely target nodes:  
+   Especially useful for GPU nodes, storage nodes, logging nodes, or secured nodes (PCI, PII).
+```
+
+---
+
 * Node labels updated → Pods are added/removed based on label matching.
 * Updating a DaemonSet
   - You can modify the Pod template in the DaemonSet.
@@ -73,19 +508,6 @@ spec:
     matchLabels:
       env: demo
 ```
-
-#### Common Use Cases
-
-Why use DaemonSets?
-Useful when you need a Pod running on every node. Common use cases:
-  - Logging agents: Run on every node to collect logs for central logging system Eg: Splunk, Humio, Fluentd, logstash, fluentbit etc.
-  - Monitoring agents: Deploy monitoring agents, such as Prometheus Node Exporter, on every node in the cluster to collect and expose node-level metrics. This way prometheus gets all the required worker node metrics.
-  - Kubernetes system components: kube-proxy.
-  - Network Management: Running a network plugin or firewall on every node to ensure consistent network policy enforcement. For example, Flannel, Calico, or other CNI plugins runs as a Daemonset on all the nodes.
-  - Security and Compliance: Running CIS Benchmarks on every node using tools like kube-bench. Also deploy security agents, such as intrusion detection systems or vulnerability scanners, on specific nodes that require additional security measures. For example, nodes that handle PCI, and PII-compliant data.
-  - Storage Provisioning: Running a storage plugin on every node to provide a shared storage system to the entire cluster.
-  - Run GPU drivers only on nodes with GPUs.
-Guarantees coverage across all nodes, which ReplicaSets cannot guarantee.
 
 
 #### Example DaemonSet Manifest
