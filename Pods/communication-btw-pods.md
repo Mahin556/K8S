@@ -1,5 +1,5 @@
 
-# **1. How Do Kubernetes Pods Communicate With Each Other?**
+### **How Do Kubernetes Pods Communicate With Each Other?**
 
 ### **a) Inside the Same Pod (Multi-container Pod)**
 
