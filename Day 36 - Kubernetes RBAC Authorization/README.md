@@ -3,42 +3,194 @@
 
 ---
 
-Welcome back to Day 36 of our CKA Course! Today, we’re diving deep into **Role-Based Access Control (RBAC)** — the most widely used and powerful authorization mechanism in Kubernetes.
-
-RBAC lets you define **who can do what and where** inside your cluster. This means you can precisely control access to resources, operations, and namespaces, ensuring security without hindering productivity.
-
-To make things practical, we’ll use a user named **Seema** throughout the lecture — and step-by-step, we’ll build her permissions from **namespace-scoped Roles** to **cluster-wide ClusterRoles**.
-
-By the end, you’ll know how to create Roles, RoleBindings, ClusterRoles, and ClusterRoleBindings — the four key RBAC building blocks.
-
----
-
 ## Namespaced vs Cluster-Scoped Resources and RBAC Verbs
 
-Before we start the discussion on RBAC authorization, let me remind you of a few important concepts:
+**Kubernetes resources can be either namespaced or non-namespaced (cluster-wide).**
+  * Namespaced resources exist within a specific namespace (e.g., Pods, Deployments).
+  * Non-namespaced resources are cluster-scoped (e.g., Nodes, PersistentVolumes).
+  * You can check resource names and whether they are namespaced by running:
+    ```bash
+    kubectl api-resources
+    kubectl api-resources --namespaced=false
+    kubectl api-resources --namespaced=true
+    ```
+    ```bash
+    root@kind-control-plane:/# kubectl api-resources --namespaced=true
+    NAME                        SHORTNAMES   APIVERSION                     NAMESPACED   KIND
+    bindings                                 v1                             true         Binding
+    configmaps                  cm           v1                             true         ConfigMap
+    endpoints                   ep           v1                             true         Endpoints
+    events                      ev           v1                             true         Event
+    limitranges                 limits       v1                             true         LimitRange
+    persistentvolumeclaims      pvc          v1                             true         PersistentVolumeClaim
+    pods                        po           v1                             true         Pod
+    podtemplates                             v1                             true         PodTemplate
+    replicationcontrollers      rc           v1                             true         ReplicationController
+    resourcequotas              quota        v1                             true         ResourceQuota
+    secrets                                  v1                             true         Secret
+    serviceaccounts             sa           v1                             true         ServiceAccount
+    services                    svc          v1                             true         Service
+    controllerrevisions                      apps/v1                        true         ControllerRevision
+    daemonsets                  ds           apps/v1                        true         DaemonSet
+    deployments                 deploy       apps/v1                        true         Deployment
+    replicasets                 rs           apps/v1                        true         ReplicaSet
+    statefulsets                sts          apps/v1                        true         StatefulSet
+    localsubjectaccessreviews                authorization.k8s.io/v1        true         LocalSubjectAccessReview
+    horizontalpodautoscalers    hpa          autoscaling/v2                 true         HorizontalPodAutoscaler
+    cronjobs                    cj           batch/v1                       true         CronJob
+    jobs                                     batch/v1                       true         Job
+    leases                                   coordination.k8s.io/v1         true         Lease
+    endpointslices                           discovery.k8s.io/v1            true         EndpointSlice
+    events                      ev           events.k8s.io/v1               true         Event
+    ingresses                   ing          networking.k8s.io/v1           true         Ingress
+    networkpolicies             netpol       networking.k8s.io/v1           true         NetworkPolicy
+    poddisruptionbudgets        pdb          policy/v1                      true         PodDisruptionBudget
+    rolebindings                             rbac.authorization.k8s.io/v1   true         RoleBinding
+    roles                                    rbac.authorization.k8s.io/v1   true         Role
+    resourceclaims                           resource.k8s.io/v1             true         ResourceClaim
+    resourceclaimtemplates                   resource.k8s.io/v1             true         ResourceClaimTemplate
+    csistoragecapacities                     storage.k8s.io/v1              true         CSIStorageCapacity
+      
+    root@kind-control-plane:/# kubectl api-resources --namespaced=false
+    NAME                                SHORTNAMES   APIVERSION                        NAMESPACED   KIND
+    componentstatuses                   cs           v1                                false        ComponentStatus
+    namespaces                          ns           v1                                false        Namespace
+    nodes                               no           v1                                false        Node
+    persistentvolumes                   pv           v1                                false        PersistentVolume
+    mutatingwebhookconfigurations                    admissionregistration.k8s.io/v1   false        MutatingWebhookConfiguration
+    validatingadmissionpolicies                      admissionregistration.k8s.io/v1   false        ValidatingAdmissionPolicy
+    validatingadmissionpolicybindings                admissionregistration.k8s.io/v1   false        ValidatingAdmissionPolicyBinding
+    validatingwebhookconfigurations                  admissionregistration.k8s.io/v1   false        ValidatingWebhookConfiguration
+    customresourcedefinitions           crd,crds     apiextensions.k8s.io/v1           false        CustomResourceDefinition
+    apiservices                                      apiregistration.k8s.io/v1         false        APIService
+    selfsubjectreviews                               authentication.k8s.io/v1          false        SelfSubjectReview
+    tokenreviews                                     authentication.k8s.io/v1          false        TokenReview
+    selfsubjectaccessreviews                         authorization.k8s.io/v1           false        SelfSubjectAccessReview
+    selfsubjectrulesreviews                          authorization.k8s.io/v1           false        SelfSubjectRulesReview
+    subjectaccessreviews                             authorization.k8s.io/v1           false        SubjectAccessReview
+    certificatesigningrequests          csr          certificates.k8s.io/v1            false        CertificateSigningRequest
+    flowschemas                                      flowcontrol.apiserver.k8s.io/v1   false        FlowSchema
+    prioritylevelconfigurations                      flowcontrol.apiserver.k8s.io/v1   false        PriorityLevelConfiguration
+    ingressclasses                                   networking.k8s.io/v1              false        IngressClass
+    ipaddresses                         ip           networking.k8s.io/v1              false        IPAddress
+    servicecidrs                                     networking.k8s.io/v1              false        ServiceCIDR
+    runtimeclasses                                   node.k8s.io/v1                    false        RuntimeClass
+    clusterrolebindings                              rbac.authorization.k8s.io/v1      false        ClusterRoleBinding
+    clusterroles                                     rbac.authorization.k8s.io/v1      false        ClusterRole
+    deviceclasses                                    resource.k8s.io/v1                false        DeviceClass
+    resourceslices                                   resource.k8s.io/v1                false        ResourceSlice
+    priorityclasses                     pc           scheduling.k8s.io/v1              false        PriorityClass
+    csidrivers                                       storage.k8s.io/v1                 false        CSIDriver
+    csinodes                                         storage.k8s.io/v1                 false        CSINode
+    storageclasses                      sc           storage.k8s.io/v1                 false        StorageClass
+    volumeattachments                                storage.k8s.io/v1                 false        VolumeAttachment
+    volumeattributesclasses             vac          storage.k8s.io/v1                 false        VolumeAttributesClass
+    ```
 
-1. **Kubernetes resources can be either namespaced or non-namespaced (cluster-wide).**
+**All Kubernetes resources have verbs (actions) associated with them.**
+  * These verbs define what operations can be performed on the resources (e.g., create, delete, get).
+  * When we create Roles or ClusterRoles, we use these verbs to specify permissions.
+  * To see the available resources along with their verbs, use:
+    ```bash
+    kubectl api-resources -o wide
+    ```
+    ```bash
+    root@kind-control-plane:/# kubectl api-resources -o wide
+    NAME                                SHORTNAMES   APIVERSION                        NAMESPACED   KIND                               VERBS                                                        CATEGORIES
+    bindings                                         v1                                true         Binding                            create
+    componentstatuses                   cs           v1                                false        ComponentStatus                    get,list
+    configmaps                          cm           v1                                true         ConfigMap                          create,delete,deletecollection,get,list,patch,update,watch   
+    endpoints                           ep           v1                                true         Endpoints                          create,delete,deletecollection,get,list,patch,update,watch   
+    events                              ev           v1                                true         Event                              create,delete,deletecollection,get,list,patch,update,watch   
+    limitranges                         limits       v1                                true         LimitRange                         create,delete,deletecollection,get,list,patch,update,watch   
+    namespaces                          ns           v1                                false        Namespace                          create,delete,get,list,patch,update,watch
+    nodes                               no           v1                                false        Node                               create,delete,deletecollection,get,list,patch,update,watch   
+    persistentvolumeclaims              pvc          v1                                true         PersistentVolumeClaim              create,delete,deletecollection,get,list,patch,update,watch   
+    persistentvolumes                   pv           v1                                false        PersistentVolume                   create,delete,deletecollection,get,list,patch,update,watch   
+    pods                                po           v1                                true         Pod                                create,delete,deletecollection,get,list,patch,update,watch   all
+    podtemplates                                     v1                                true         PodTemplate                        create,delete,deletecollection,get,list,patch,update,watch   
+    replicationcontrollers              rc           v1                                true         ReplicationController              create,delete,deletecollection,get,list,patch,update,watch   all
+    resourcequotas                      quota        v1                                true         ResourceQuota                      create,delete,deletecollection,get,list,patch,update,watch   
+    secrets                                          v1                                true         Secret                             create,delete,deletecollection,get,list,patch,update,watch       
+    serviceaccounts                     sa           v1                                true         ServiceAccount                     create,delete,deletecollection,get,list,patch,update,watch   
+    services                            svc          v1                                true         Service                            create,delete,deletecollection,get,list,patch,update,watch   all
+            false        PriorityClass                      create,delete,deletecollection,get,list,patch,update,watch
+    csidrivers                                       storage.k8s.io/v1                 false        CSIDriver                          create,delete,deletecollection,get,list,patch,update,watch
+    csinodes                                         storage.k8s.io/v1                 false        CSINode                            create,delete,deletecollection,get,list,patch,update,watch
+    csistoragecapacities                             storage.k8s.io/v1                 true         CSIStorageCapacity                 create,delete,deletecollection,get,list,patch,update,watch
+    storageclasses                      sc           storage.k8s.io/v1                 false        StorageClass                       create,delete,deletecollection,get,list,patch,update,watch
+    volumeattachments                                storage.k8s.io/v1                 false        VolumeAttachment                   create,delete,deletecollection,get,list,patch,update,watch
+    volumeattributesclasses             vac          storage.k8s.io/v1                 false        VolumeAttributesClass              create,delete,deletecollection,get,list,patch,update,watch
+    root@kind-control-plane:/# kubectl api-resources -o wide
+    NAME                                SHORTNAMES   APIVERSION                        NAMESPACED   KIND                               VERBS                                                        CATEGORIES
+    bindings                                         v1                                true         Binding                            create
+    componentstatuses                   cs           v1                                false        ComponentStatus                    get,list
+    configmaps                          cm           v1                                true         ConfigMap                          create,delete,deletecollection,get,list,patch,update,watch   
+    endpoints                           ep           v1                                true         Endpoints                          create,delete,deletecollection,get,list,patch,update,watch   
+    events                              ev           v1                                true         Event                              create,delete,deletecollection,get,list,patch,update,watch   
+    limitranges                         limits       v1                                true         LimitRange                         create,delete,deletecollection,get,list,patch,update,watch   
+    namespaces                          ns           v1                                false        Namespace                          create,delete,get,list,patch,update,watch
+    nodes                               no           v1                                false        Node                               create,delete,deletecollection,get,list,patch,update,watch   
+    persistentvolumeclaims              pvc          v1                                true         PersistentVolumeClaim              create,delete,deletecollection,get,list,patch,update,watch   
+    persistentvolumes                   pv           v1                                false        PersistentVolume                   create,delete,deletecollection,get,list,patch,update,watch   
+    pods                                po           v1                                true         Pod                                create,delete,deletecollection,get,list,patch,update,watch   all
+    podtemplates                                     v1                                true         PodTemplate                        create,delete,deletecollection,get,list,patch,update,watch      
+    replicationcontrollers              rc           v1                                true         ReplicationController              create,delete,deletecollection,get,list,patch,update,watch   all
+    resourcequotas                      quota        v1                                true         ResourceQuota                      create,delete,deletecollection,get,list,patch,update,watch   
+    secrets                                          v1                                true         Secret                             create,delete,deletecollection,get,list,patch,update,watch   
+    serviceaccounts                     sa           v1                                true         ServiceAccount                     create,delete,deletecollection,get,list,patch,update,watch   
+    services                            svc          v1                                true         Service                            create,delete,deletecollection,get,list,patch,update,watch   all
+    mutatingwebhookconfigurations                    admissionregistration.k8s.io/v1   false        MutatingWebhookConfiguration       create,delete,deletecollection,get,list,patch,update,watch   api-extensions
+    validatingadmissionpolicies                      admissionregistration.k8s.io/v1   false        ValidatingAdmissionPolicy          create,delete,deletecollection,get,list,patch,update,watch   api-extensions
+    validatingadmissionpolicybindings                admissionregistration.k8s.io/v1   false        ValidatingAdmissionPolicyBinding   create,delete,deletecollection,get,list,patch,update,watch   api-extensions
+    validatingwebhookconfigurations                  admissionregistration.k8s.io/v1   false        ValidatingWebhookConfiguration     create,delete,deletecollection,get,list,patch,update,watch   api-extensions
+    customresourcedefinitions           crd,crds     apiextensions.k8s.io/v1           false        CustomResourceDefinition           create,delete,deletecollection,get,list,patch,update,watch   api-extensions
+    apiservices                                      apiregistration.k8s.io/v1         false        APIService                         create,delete,deletecollection,get,list,patch,update,watch   api-extensions
+    controllerrevisions                              apps/v1                           true         ControllerRevision                 create,delete,deletecollection,get,list,patch,update,watch
+    daemonsets                          ds           apps/v1                           true         DaemonSet                          create,delete,deletecollection,get,list,patch,update,watch   all
+    deployments                         deploy       apps/v1                           true         Deployment                         create,delete,deletecollection,get,list,patch,update,watch   all
+    replicasets                         rs           apps/v1                           true         ReplicaSet                         create,delete,deletecollection,get,list,patch,update,watch   all
+    statefulsets                        sts          apps/v1                           true         StatefulSet                        create,delete,deletecollection,get,list,patch,update,watch   all
+    selfsubjectreviews                               authentication.k8s.io/v1          false        SelfSubjectReview                  create
+    tokenreviews                                     authentication.k8s.io/v1          false        TokenReview                        create
+    localsubjectaccessreviews                        authorization.k8s.io/v1           true         LocalSubjectAccessReview           create
+    selfsubjectaccessreviews                         authorization.k8s.io/v1           false        SelfSubjectAccessReview            create
+    selfsubjectrulesreviews                          authorization.k8s.io/v1           false        SelfSubjectRulesReview             create
+    subjectaccessreviews                             authorization.k8s.io/v1           false        SubjectAccessReview                create
+    horizontalpodautoscalers            hpa          autoscaling/v2                    true         HorizontalPodAutoscaler            create,delete,deletecollection,get,list,patch,update,watch   all
+    cronjobs                            cj           batch/v1                          true         CronJob                            create,delete,deletecollection,get,list,patch,update,watch   all
+    jobs                                             batch/v1                          true         Job                                create,delete,deletecollection,get,list,patch,update,watch   all
+    certificatesigningrequests          csr          certificates.k8s.io/v1            false        CertificateSigningRequest          create,delete,deletecollection,get,list,patch,update,watch      
+    leases                                           coordination.k8s.io/v1            true         Lease                              create,delete,deletecollection,get,list,patch,update,watch      
+    endpointslices                                   discovery.k8s.io/v1               true         EndpointSlice                      create,delete,deletecollection,get,list,patch,update,watch      
+    events                              ev           events.k8s.io/v1                  true         Event                              create,delete,deletecollection,get,list,patch,update,watch      
+    flowschemas                                      flowcontrol.apiserver.k8s.io/v1   false        FlowSchema                         create,delete,deletecollection,get,list,patch,update,watch      
+    prioritylevelconfigurations                      flowcontrol.apiserver.k8s.io/v1   false        PriorityLevelConfiguration         create,delete,deletecollection,get,list,patch,update,watch      
+    ingressclasses                                   networking.k8s.io/v1              false        IngressClass                       create,delete,deletecollection,get,list,patch,update,watch      
+    ingresses                           ing          networking.k8s.io/v1              true         Ingress                            create,delete,deletecollection,get,list,patch,update,watch      
+    ipaddresses                         ip           networking.k8s.io/v1              false        IPAddress                          create,delete,deletecollection,get,list,patch,update,watch      
+    networkpolicies                     netpol       networking.k8s.io/v1              true         NetworkPolicy                      create,delete,deletecollection,get,list,patch,update,watch      
+    servicecidrs                                     networking.k8s.io/v1              false        ServiceCIDR                        create,delete,deletecollection,get,list,patch,update,watch      
+    runtimeclasses                                   node.k8s.io/v1                    false        RuntimeClass                       create,delete,deletecollection,get,list,patch,update,watch      
+    poddisruptionbudgets                pdb          policy/v1                         true         PodDisruptionBudget                create,delete,deletecollection,get,list,patch,update,watch      
+    clusterrolebindings                              rbac.authorization.k8s.io/v1      false        ClusterRoleBinding                 create,delete,deletecollection,get,list,patch,update,watch      
+    clusterroles                                     rbac.authorization.k8s.io/v1      false        ClusterRole                        create,delete,deletecollection,get,list,patch,update,watch
+    rolebindings                                     rbac.authorization.k8s.io/v1      true         RoleBinding                        create,delete,deletecollection,get,list,patch,update,watch
+    roles                                            rbac.authorization.k8s.io/v1      true         Role                               create,delete,deletecollection,get,list,patch,update,watch
+    deviceclasses                                    resource.k8s.io/v1                false        DeviceClass                        create,delete,deletecollection,get,list,patch,update,watch   
+    resourceclaims                                   resource.k8s.io/v1                true         ResourceClaim                      create,delete,deletecollection,get,list,patch,update,watch
+    resourceclaimtemplates                           resource.k8s.io/v1                true         ResourceClaimTemplate              create,delete,deletecollection,get,list,patch,update,watch
+    resourceslices                                   resource.k8s.io/v1                false        ResourceSlice                      create,delete,deletecollection,get,list,patch,update,watch
+    priorityclasses                     pc           scheduling.k8s.io/v1              false        PriorityClass                      create,delete,deletecollection,get,list,patch,update,watch
+    csidrivers                                       storage.k8s.io/v1                 false        CSIDriver                          create,delete,deletecollection,get,list,patch,update,watch
+    csinodes                                         storage.k8s.io/v1                 false        CSINode                            create,delete,deletecollection,get,list,patch,update,watch
+    csistoragecapacities                             storage.k8s.io/v1                 true         CSIStorageCapacity                 create,delete,deletecollection,get,list,patch,update,watch
+    storageclasses                      sc           storage.k8s.io/v1                 false        StorageClass                       create,delete,deletecollection,get,list,patch,update,watch
+    volumeattachments                                storage.k8s.io/v1                 false        VolumeAttachment                   create,delete,deletecollection,get,list,patch,update,watch
+    volumeattributesclasses             vac          storage.k8s.io/v1                 false        VolumeAttributesClass              create,delete,deletecollection,get,list,patch,update,watch
+    ```
 
-   * Namespaced resources exist within a specific namespace (e.g., Pods, Deployments).
-   * Non-namespaced resources are cluster-scoped (e.g., Nodes, PersistentVolumes).
-   * You can check resource names and whether they are namespaced by running:
-
-     ```bash
-     kubectl api-resources
-     ```
-
-2. **All Kubernetes resources have verbs (actions) associated with them.**
-
-   * These verbs define what operations can be performed on the resources (e.g., create, delete, get).
-   * When we create Roles or ClusterRoles, we use these verbs to specify permissions.
-   * To see the available resources along with their verbs, use:
-
-     ```bash
-     kubectl api-resources -o wide
-     ```
-
-3. **Here is a quick reference table explaining the common verbs you will see in RBAC permissions:**
-
+**Here is a quick reference table explaining the common verbs you will see in RBAC permissions:**
 
 | Verb               | Description                                                                       |
 | ------------------ | --------------------------------------------------------------------------------- |
@@ -51,12 +203,9 @@ Before we start the discussion on RBAC authorization, let me remind you of a few
 | `update`           | Apply changes to an existing resource (e.g., `kubectl apply -f deployment.yaml`)  |
 | `watch`            | Continuously observe changes in resources (e.g., `kubectl get pods --watch`)      |
 
-
 ---
 
 ## What is RBAC?
-
-Let’s start with the basics.
 
 RBAC stands for **Role-Based Access Control**. It’s a method to regulate access based on a user's role within an organization.
 
@@ -84,7 +233,6 @@ In Kubernetes:
 > **Note:** A `RoleBinding` can reference a `ClusterRole`, allowing you to **reuse cluster-defined permissions** in a **specific namespace**. The `ClusterRole`'s rules will only apply **within the namespace** where the `RoleBinding` exists.
 
 RBAC answers these questions:
-
 * Who is the user? (like Seema)
 * What resource do they want to access? (pods, deployments, secrets, etc.)
 * Which operation do they want to perform? (get, list, create, delete, update)
@@ -106,8 +254,6 @@ Set up the user, generate the certs, configure `kubeconfig`, and you’ll be rea
 ### Setting Up the `dev` Namespace as Default
 
 In the upcoming examples, we’ll be creating resources in the `dev` namespace. To keep our CLI commands clean and avoid repeatedly typing `-n dev` or `--namespace=dev`, we’ll set `dev` as the **default namespace** for our current context.
-
-Here’s how:
 
 ```bash
 # Step 1: Create the dev namespace (if not already created)
@@ -288,7 +434,6 @@ Let’s say Seema needs **read access to nodes**. Since nodes are **cluster-leve
 ---
 
 ### Step 1: Define a ClusterRole (`node-reader`)
-
 ```yaml
 apiVersion: rbac.authorization.k8s.io/v1          # API version for RBAC resources
 kind: ClusterRole                                 # ClusterRole applies permissions across the whole cluster

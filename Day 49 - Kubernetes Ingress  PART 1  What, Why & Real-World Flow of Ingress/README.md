@@ -1,32 +1,7 @@
-# Day 49: MASTER Kubernetes Ingress | PART 1 | What, Why & Real-World Flow of Ingress | CKA 2025
-
-## Video reference for Day 49 is the following:
-
-[![Watch the video](https://img.youtube.com/vi/yj-ZlKTYDUI/maxresdefault.jpg)](https://www.youtube.com/watch?v=yj-ZlKTYDUI&ab_channel=CloudWithVarJosh)
-
+### References:-
+* [Day 49: MASTER Kubernetes Ingress | PART 1 | What, Why & Real-World Flow of Ingress](https://www.youtube.com/watch?v=yj-ZlKTYDUI&ab_channel=CloudWithVarJosh)
 
 ---
-## ⭐ Support the Project  
-If this **repository** helps you, give it a ⭐ to show your support and help others discover it! 
-
----
-
-## Table of Contents
-
-* [Introduction](#introduction)
-* [Why Ingress?](#why-ingress)
-* [What Are We Looking For?](#what-are-we-looking-for)
-* [What Is Ingress?](#what-is-ingress)
-* [What Is an Ingress Controller?](#what-is-an-ingress-controller)
-* [Real-World Flow: How Ingress Works](#real-world-flow-how-ingress-works)
-* [Ingress Setup: Cloud-Native vs 3rd-Party Controllers](#ingress-setup-cloud-native-vs-3rd-party-controllers)
-* [Popular Ingress Controllers](#popular-ingress-controllers)
-* [What’s Ahead](#whats-ahead)
-* [Conclusion](#conclusion)
-* [References](#references)
-
----
-
 
 ## Introduction
 
@@ -58,11 +33,9 @@ Using a `LoadBalancer` service type improves on this by provisioning a cloud-man
 ## What Are We Looking For?
 
 To run production workloads effectively, we need a Kubernetes-native solution that:
-
 * Supports **HTTP(S)-aware routing** like `/android`, `/iphone`, or `iphone.myapp.com`.
 * Uses a **single cloud Load Balancer** to serve multiple applications, reducing cost and simplifying operations.
 * Supports **declarative, version-controlled routing rules** that are part of your Kubernetes manifests.
-
 This is where **Ingress** becomes essential.
 
 ---
@@ -112,12 +85,10 @@ Here's what happens step by step:
 
 1. The request from the browser travels over the internet and reaches an **external Load Balancer**.
 2. This Load Balancer was **provisioned by the Ingress Controller** running inside your Kubernetes cluster.
-
    * If you're using a **cloud-native Ingress Controller** (like AWS LBC or GKE Ingress), the controller provisions an **L7 HTTP(S) Load Balancer** on the cloud provider automatically.
    * If you're using a **3rd-party Ingress Controller** like NGINX or HAProxy (common in on-prem or hybrid setups), you must manually create a **Layer 4 Load Balancer** using a `Service: LoadBalancer`, which simply forwards traffic to the Ingress Controller pod.
 3. The **Ingress Controller reads the Ingress resource**, which defines routing rules — for example, all requests to `/iphone` should go to `iphone-svc`.
 4. Based on these rules, the controller:
-
    * Updates the external Load Balancer config (in cloud-native setups), or
    * Handles routing internally after receiving traffic from the L4 LB (in 3rd-party setups).
 5. The request is forwarded to the matching **Kubernetes Service (`iphone-svc`)**, which then routes it to one of the associated Pods.

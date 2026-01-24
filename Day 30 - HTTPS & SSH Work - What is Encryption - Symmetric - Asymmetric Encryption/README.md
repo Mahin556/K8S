@@ -67,6 +67,41 @@ aws kms generate-data-key \
 # CiphertextBlob → Encrypted key
 # Plaintext → AES key (Base64)
 
+# 🔐 Generate Crypto Keys (OpenSSL)
+
+# ChaCha20 (256-bit key)
+openssl rand -hex 32 > chacha20.key
+
+# Blowfish (128-bit key)
+openssl rand -hex 16 > blowfish.key
+# Blowfish Max Strength (448-bit)
+openssl rand -hex 56 > blowfish-448.key
+
+# Twofish (256-bit key)
+openssl rand -hex 32 > twofish.key
+
+# DES (56-bit key)
+openssl rand -hex 7 > des.key
+
+# 3DES / Triple DES (168-bit key)
+openssl rand -hex 24 > 3des.key
+
+# OPTIONAL — Generate IV / NONCE
+# ChaCha20 nonce (96-bit / 12 bytes)
+openssl rand -hex 12 > chacha20.nonce
+
+# Blowfish & DES IV (64-bit / 8 bytes)
+openssl rand -hex 8 > blowfish.iv
+openssl rand -hex 8 > des.iv
+
+# Twofish IV (128-bit / 16 bytes)
+openssl rand -hex 16 > twofish.iv
+
+#Encrypt:
+openssl enc -chacha20 -in secret.txt -out secret.enc -K $(cat chacha20.key) -iv $(cat chacha20.nonce)
+
+#Decrypt
+openssl enc -d -chacha20 -in secret.enc -out plain.txt -K $(cat chacha20.key) -iv $(cat chacha20.nonce)
 ```
 
 **Common Use Cases:**
@@ -135,8 +170,8 @@ aws kms generate-data-key \
   * You cannot encrypt large files with RSA.
   * You must split and encrypt small chunks, which becomes extremely slow.
   * That’s why RSA is mostly used for encrypting AES keys, Not used for actual data encryption.
----
 
+---
 
 ### 2. Asymmetric Encryption (Public Key Cryptography)
 
@@ -439,6 +474,7 @@ Verified OK
   * JWT / Tokens
     API servers sign tokens with a private key.   
     Clients verify with the public key.
+
 
 * **Integrity check**
   - [Integrity-check](https://github.com/Mahin556/Linux/blob/main/integrity-check.md)

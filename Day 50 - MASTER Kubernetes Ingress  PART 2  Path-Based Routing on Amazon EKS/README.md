@@ -1,46 +1,5 @@
-# Day 50: MASTER Kubernetes Ingress | PART 2 | Path-Based Routing on Amazon EKS with AWS ALB | CKA 2025
-
-## Video reference for Day 50 is the following:
-
-[![Watch the video](https://img.youtube.com/vi/4d0dkj6Vc70/maxresdefault.jpg)](https://www.youtube.com/watch?v=4d0dkj6Vc70&ab_channel=CloudWithVarJosh)
-
----
-## ⭐ Support the Project  
-If this **repository** helps you, give it a ⭐ to show your support and help others discover it! 
-
----
-
-## Table of Contents
-
-* [Introduction](#introduction)
-* [Demo 1: Path-Based Routing Using Ingress on Amazon EKS](#demo-1-path-based-routing-using-ingress-on-amazon-eks)
-  * [What Are We Going to Deploy?](#what-are-we-going-to-deploy)
-  * [Cluster Configuration](#cluster-configuration)
-  * [Prerequisites](#prerequisites)
-  * [Step 1: Provision EKS Cluster](#step-1-provision-eks-cluster)
-  * [Step 2: Install AWS Load Balancer Controller](#step-2-install-aws-load-balancer-controller)
-    * [Create IAM Policy](#create-iam-policy)
-    * [Create an IAM-Backed Kubernetes Service Account](#create-an-iam-backed-kubernetes-service-account)
-    * [Install the AWS Load Balancer Controller Using Helm](#install-the-aws-load-balancer-controller-using-helm)
-  * [Step 3: Create Deployments and Services](#step-3-create-deployments-and-services)
-  * [Step 4: Creating the Ingress Resource](#step-4-creating-the-ingress-resource)
-    * [Understanding ALB Target Types in Amazon EKS](#understanding-alb-target-types-in-amazon-eks)
-    * [Understanding `IngressClass`](#understanding-ingressclass)
-  * [Step 5: End-to-End Verification](#step-5-end-to-end-verification)
-  * [Step 6: Cleanup](#step-6-cleanup)
-* [Conclusion](#conclusion)
-* [References](#references)
-
----
-
-
-## Introduction
-
-Welcome to **Day 50** of the CKA 2025 course, and **Part 2** of our deep dive into **Kubernetes Ingress**. In this session, we bring theory to life by walking through a **real-world, production-ready demo** that showcases **path-based routing** on a **Multi-AZ Amazon EKS cluster**, powered by the **AWS Application Load Balancer (ALB)** Ingress Controller.
-
-We’ll simulate a multi-service microfrontend application tailored for iPhone, Android, and Desktop users. By the end of this demo, you'll understand exactly how Kubernetes Ingress resources translate into a fully managed AWS ALB, how routing decisions are made based on URL paths, and how to deploy, test, and observe everything using native Kubernetes and AWS tooling.
-
-This is a **foundational pattern** used in real-world applications to expose multiple backends via a single ALB, reduce infrastructure overhead, and simplify operations. Let’s build it step-by-step and understand the flow from external request to Pod-level routing.
+### References:-
+* [Day 50: MASTER Kubernetes Ingress | PART 2 | Path-Based Routing on Amazon EKS with AWS ALB](https://www.youtube.com/watch?v=4d0dkj6Vc70&ab_channel=CloudWithVarJosh)
 
 ---
 

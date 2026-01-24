@@ -160,6 +160,246 @@ Each group version (like `apps/v1`) defines a versioned API surface. This ensure
 >
 > This command lists all resource types along with their associated **API group**, **namespaced scope**, and **short names**, helping you understand how Kubernetes organizes its resources.
 
+
+```bash
+======================== KUBERNETES API – COMPLETE PRACTICAL DEMO ========================
+
+GOAL
+- Prove that EVERYTHING in Kubernetes is an API call
+- Interact directly with Kubernetes API (not kubectl magic)
+- Understand resource vs non-resource endpoints
+- Observe authentication + authorization in action
+
+=======================================================================================
+
+PREREQUISITES
+-------------
+- Working Kubernetes cluster
+- kubectl configured
+- Cluster-admin access (for learning)
+
+=======================================================================================
+
+STEP 1: CHECK API SERVER VERSION (NON-RESOURCE ENDPOINT)
+--------------------------------------------------------
+kubectl get --raw /version
+
+Behind the scenes:
+GET /version
+
+Observation:
+- No authentication error
+- Public endpoint
+- Returns:
+  - gitVersion
+  - goVersion
+  - platform
+
+CONFIRMATION:
+✔ Non-resource endpoint
+✔ Publicly accessible
+
+=======================================================================================
+
+STEP 2: CHECK API SERVER HEALTH
+--------------------------------
+kubectl get --raw /healthz
+kubectl get --raw /livez
+kubectl get --raw /readyz
+
+Behind the scenes:
+GET /healthz
+GET /livez
+GET /readyz
+
+Observation:
+- Returns "ok"
+- Used by:
+  - Load balancers
+  - Monitoring tools
+
+=======================================================================================
+
+STEP 3: LIST API GROUPS
+-----------------------
+kubectl get --raw /api
+kubectl get --raw /apis
+
+/api   → core API group
+/apis  → named API groups
+
+CONFIRMATION:
+✔ Kubernetes API is GROUPED and VERSIONED
+
+=======================================================================================
+
+STEP 4: EXPLORE CORE API RESOURCES
+----------------------------------
+kubectl get --raw /api/v1 | jq
+
+You will see:
+- pods
+- services
+- namespaces
+- configmaps
+- secrets
+- nodes
+
+CONFIRMATION:
+✔ Core resources live under /api/v1
+
+=======================================================================================
+
+STEP 5: EXPLORE NAMED API GROUP (apps)
+-------------------------------------
+kubectl get --raw /apis/apps/v1 | jq
+
+You will see:
+- deployments
+- statefulsets
+- daemonsets
+- replicasets
+
+CONFIRMATION:
+✔ Modern workloads live under /apis
+
+=======================================================================================
+
+STEP 6: CREATE A POD (RESOURCE ENDPOINT)
+---------------------------------------
+kubectl run api-demo-pod --image=nginx
+
+Behind the scenes:
+POST /api/v1/namespaces/default/pods
+
+CONFIRMATION:
+✔ kubectl → REST call → API server
+
+=======================================================================================
+
+STEP 7: FETCH PODS USING RAW API
+--------------------------------
+kubectl get --raw /api/v1/namespaces/default/pods | jq '.items[].metadata.name'
+
+CONFIRMATION:
+✔ Direct API interaction
+✔ JSON response
+
+=======================================================================================
+
+STEP 8: DELETE POD USING API
+----------------------------
+kubectl delete pod api-demo-pod
+
+Behind the scenes:
+DELETE /api/v1/namespaces/default/pods/api-demo-pod
+
+=======================================================================================
+
+STEP 9: AUTHENTICATION FAILURE DEMO
+-----------------------------------
+Use curl WITHOUT token:
+
+API_SERVER=$(kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}')
+
+curl -k $API_SERVER/api
+
+Result:
+401 Unauthorized
+
+CONFIRMATION:
+✔ API server enforces authentication
+
+=======================================================================================
+
+STEP 10: AUTHENTICATION SUCCESS WITH TOKEN
+------------------------------------------
+Extract token from kubeconfig:
+
+TOKEN=$(kubectl config view --minify -o jsonpath='{.users[0].user.token}')
+
+curl -k \
+  -H "Authorization: Bearer $TOKEN" \
+  $API_SERVER/api
+
+Result:
+- API versions returned
+
+CONFIRMATION:
+✔ Authentication succeeded
+
+=======================================================================================
+
+STEP 11: AUTHORIZATION FAILURE DEMO (RBAC)
+------------------------------------------
+Create limited ServiceAccount:
+
+kubectl create sa api-test
+
+Try accessing pods using its token (no RBAC yet):
+→ 403 Forbidden
+
+CONFIRMATION:
+✔ Authenticated
+✔ Not authorized
+
+=======================================================================================
+
+STEP 12: RBAC FIX
+-----------------
+kubectl create role pod-reader \
+  --verb=get,list \
+  --resource=pods
+
+kubectl create rolebinding pod-reader-binding \
+  --role=pod-reader \
+  --serviceaccount=default:api-test
+
+Retry API call → SUCCESS
+
+=======================================================================================
+
+STEP 13: NON-RESOURCE RBAC DEMO
+--------------------------------
+RBAC rule example:
+nonResourceURLs:
+- /healthz
+- /version
+
+Shows:
+✔ Resource & non-resource endpoints are controlled separately
+
+=======================================================================================
+
+REQUEST FLOW YOU JUST PROVED
+-----------------------------
+Client (kubectl/curl)
+ → API Server
+ → Authentication
+ → Authorization
+ → Admission
+ → Validation
+ → etcd
+
+=======================================================================================
+
+REAL-WORLD TAKEAWAY
+-------------------
+- Kubernetes is API-driven
+- kubectl is just a REST client
+- API server is the gatekeeper
+- RBAC controls everything
+- If you understand the API, you understand Kubernetes
+
+=======================================================================================
+
+ONE-LINE SUMMARY
+----------------
+No API request → No Kubernetes action.
+
+=======================================================================================
+```
+
 ---
 
 
@@ -260,7 +500,16 @@ These endpoints are useful for introspection and liveness/readiness probes:
     "platform": "linux/amd64"
     }
    ```
+   OR
+   ```bash
+   curl --cacert /etc/kubernetes/pki/ca.crt \
+   --cert seema.crt \
+   --key seema.key \
+   https://172.30.1.2:6443/version
 
+   curl --cacert /etc/kubernetes/pki/ca.crt \
+   https://172.30.1.2:6443/version
+   ```
 
    You can use the same `-k` flag for:
    ```bash
@@ -300,6 +549,260 @@ Do the same for:
 #### Note on Bearer Tokens
 
 Instead of using certificates, you can also authenticate using **bearer tokens**—these are commonly issued to service accounts or users. We’ll cover bearer token authentication later in this course.
+
+---
+
+```text
+==================== KUBERNETES CORE API GROUP & API ACCESS – PRACTICAL DEMO ====================
+
+GOAL
+- Understand why core group has no name in manifests
+- Prove how apiVersion maps to real API endpoints
+- Access Kubernetes API using curl
+- See unauthenticated vs authenticated endpoints in action
+
+===============================================================================================
+
+PART 1: WHY CORE GROUP HAS NO NAME (PRACTICAL PROOF)
+----------------------------------------------------
+
+STEP 1: List API groups exposed by the cluster
+----------------------------------------------
+kubectl api-versions
+
+Observation:
+- You will see:
+  v1
+  apps/v1
+  networking.k8s.io/v1
+  rbac.authorization.k8s.io/v1
+  ...
+
+IMPORTANT:
+- `v1` alone = CORE GROUP
+- Others = named groups
+
+===============================================================================================
+
+STEP 2: List core resources
+---------------------------
+kubectl api-resources --api-group=""
+
+You will see:
+- pods
+- services
+- configmaps
+- secrets
+- nodes
+
+CONFIRMATION:
+✔ Core group name = empty string ""
+
+===============================================================================================
+
+STEP 3: Compare manifest examples
+---------------------------------
+
+Core group (Pod):
+apiVersion: v1
+kind: Pod
+
+Named group (Deployment):
+apiVersion: apps/v1
+kind: Deployment
+
+WHY?
+- Core group existed first
+- Backward compatibility preserved
+- Group name is implicitly ""
+
+===============================================================================================
+
+PART 2: PROVE URL MAPPING (apiVersion → API PATH)
+-------------------------------------------------
+
+STEP 4: Access core API endpoint
+--------------------------------
+kubectl get --raw /api/v1 | jq '.resources[].name'
+
+This maps to:
+apiVersion: v1
+
+===============================================================================================
+
+STEP 5: Access named API group endpoint
+---------------------------------------
+kubectl get --raw /apis/networking.k8s.io/v1 | jq '.resources[].name'
+
+This maps to:
+apiVersion: networking.k8s.io/v1
+
+CONFIRMATION:
+✔ apiVersion ≠ full URL
+✔ API server maps internally
+
+===============================================================================================
+
+PART 3: ACCESS UNAUTHENTICATED ENDPOINTS USING curl
+---------------------------------------------------
+
+STEP 6: Get API server endpoint
+-------------------------------
+kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}'
+
+Example:
+https://127.0.0.1:53856
+
+Save it:
+API_SERVER=https://127.0.0.1:53856
+
+===============================================================================================
+
+STEP 7: Access /version (unauthenticated)
+-----------------------------------------
+curl $API_SERVER/version
+
+Expected:
+❌ TLS error (unknown CA)
+
+Fix (skip verification – demo only):
+curl -k $API_SERVER/version
+
+Result:
+✔ Kubernetes version info returned
+
+===============================================================================================
+
+STEP 8: Access health endpoints
+--------------------------------
+curl -k $API_SERVER/readyz
+curl -k $API_SERVER/livez
+curl -k $API_SERVER/healthz
+
+Expected:
+ok
+
+CONFIRMATION:
+✔ These endpoints are public
+✔ Used for health checks
+
+===============================================================================================
+
+PART 4: FAILING AUTHENTICATED ENDPOINT (EXPECTED)
+-------------------------------------------------
+
+STEP 9: Try accessing /api without auth
+---------------------------------------
+curl -k $API_SERVER/api
+
+Result:
+401 Unauthorized
+
+CONFIRMATION:
+✔ Authentication is enforced
+
+===============================================================================================
+
+PART 5: AUTHENTICATED API ACCESS USING CERTS
+--------------------------------------------
+
+STEP 10: Extract cert paths from kubeconfig
+-------------------------------------------
+kubectl config view --minify
+
+Look for:
+- client-certificate-data
+- client-key-data
+- certificate-authority-data
+
+Decode them:
+(base64 decode into files)
+
+Example:
+echo "<base64>" | base64 -d > client.crt
+echo "<base64>" | base64 -d > client.key
+echo "<base64>" | base64 -d > ca.crt
+
+===============================================================================================
+
+STEP 11: Access API using client certificates
+---------------------------------------------
+curl $API_SERVER/api \
+  --cert client.crt \
+  --key client.key \
+  --cacert ca.crt
+
+Result:
+✔ API versions returned
+
+CONFIRMATION:
+✔ Authenticated access succeeded
+
+===============================================================================================
+
+PART 6: AUTHENTICATED ACCESS USING BEARER TOKEN
+-----------------------------------------------
+
+STEP 12: Extract token from kubeconfig
+--------------------------------------
+kubectl config view --minify -o jsonpath='{.users[0].user.token}'
+
+Save it:
+TOKEN=<token>
+
+===============================================================================================
+
+STEP 13: Use bearer token with curl
+-----------------------------------
+curl -k $API_SERVER/api \
+  -H "Authorization: Bearer $TOKEN"
+
+Result:
+✔ API response returned
+
+===============================================================================================
+
+WHAT YOU JUST PROVED
+--------------------
+✔ Core group has empty name ""
+✔ apiVersion is NOT a URL
+✔ API server maps apiVersion → endpoint
+✔ Some endpoints are public
+✔ Resource APIs require authentication
+✔ kubeconfig is just API credentials
+✔ kubectl is a REST client
+
+===============================================================================================
+
+MENTAL MODEL (REMEMBER THIS)
+----------------------------
+Manifest apiVersion
+→ API group + version
+→ API server endpoint
+→ Authentication
+→ Authorization
+→ Admission
+→ etcd
+
+===============================================================================================
+
+FINAL TAKEAWAY
+--------------
+The Kubernetes API is the contract.
+The API server is the gatekeeper.
+The core group looks special only because it came first.
+
+===============================================================================================
+
+END OF PRACTICAL
+===============================================================================================
+
+If you want next:
+- RBAC for nonResourceURLs
+- Admission controller demo
+- API audit logging walkthrough
+- CKA / CKS exam-style questions
+```
 
 
 ---
@@ -363,6 +866,258 @@ curl http://127.0.0.1:8001/api/v1/namespaces/default/pods
 ```
 
 This will list the Pods in the `default` namespace—**no manual authentication required**.
+
+```bash
+==================== kubectl proxy – COMPLETE PRACTICAL DEMO ====================
+
+GOAL
+- Access Kubernetes API WITHOUT managing TLS certs or tokens
+- Understand what kubectl proxy actually does
+- Prove how API calls flow through the proxy
+- Safely explore Kubernetes API using plain HTTP
+
+================================================================================
+
+PREREQUISITES
+-------------
+- kubectl installed
+- kubeconfig (~/.kube/config) properly configured
+- Access to a Kubernetes cluster
+
+================================================================================
+
+PART 1: WHY kubectl proxy EXISTS (PRACTICAL CONTEXT)
+----------------------------------------------------
+Normally, to call Kubernetes API directly, you must handle:
+- HTTPS
+- CA certificates
+- Client certificates OR bearer tokens
+
+kubectl proxy removes this burden by:
+✔ Reading kubeconfig
+✔ Authenticating for you
+✔ Forwarding requests securely
+✔ Exposing a LOCAL HTTP endpoint only
+
+================================================================================
+
+PART 2: START kubectl proxy
+---------------------------
+
+STEP 1: Open a dedicated terminal and run:
+------------------------------------------------
+kubectl proxy
+
+Output:
+Starting to serve on 127.0.0.1:8001
+
+IMPORTANT:
+- Binds ONLY to localhost (127.0.0.1)
+- Not accessible externally
+- Safe by default
+
+================================================================================
+
+PART 3: VERIFY PROXY IS RUNNING
+-------------------------------
+
+STEP 2: In another terminal, test the proxy root:
+--------------------------------------------------
+curl http://127.0.0.1:8001/
+
+Expected output:
+{
+  "paths": [
+    "/api",
+    "/apis",
+    "/healthz",
+    "/livez",
+    "/readyz",
+    "/version"
+  ]
+}
+
+CONFIRMATION:
+✔ Proxy is active
+✔ API paths exposed
+
+================================================================================
+
+PART 4: ACCESS UNAUTHENTICATED ENDPOINTS (VIA PROXY)
+---------------------------------------------------
+
+STEP 3: Get Kubernetes version
+------------------------------
+curl http://127.0.0.1:8001/version
+
+Result:
+- Kubernetes version JSON
+
+OBSERVATION:
+✔ No TLS
+✔ No token
+✔ No certs
+✔ Still authenticated internally
+
+================================================================================
+
+STEP 4: Check API server health
+-------------------------------
+curl http://127.0.0.1:8001/healthz
+curl http://127.0.0.1:8001/livez
+curl http://127.0.0.1:8001/readyz
+
+Expected:
+ok
+
+================================================================================
+
+PART 5: ACCESS RESOURCE APIs (THE REAL POWER)
+---------------------------------------------
+
+STEP 5: List Pods in default namespace
+--------------------------------------
+curl http://127.0.0.1:8001/api/v1/namespaces/default/pods
+
+This is equivalent to:
+kubectl get pods
+
+Behind the scenes:
+GET /api/v1/namespaces/default/pods
+
+CONFIRMATION:
+✔ Authenticated automatically
+✔ Authorized via RBAC
+✔ Returned as JSON
+
+================================================================================
+
+STEP 6: Pretty-print output (optional)
+--------------------------------------
+curl http://127.0.0.1:8001/api/v1/namespaces/default/pods | jq '.items[].metadata.name'
+
+================================================================================
+
+PART 6: ACCESS NAMED API GROUPS
+-------------------------------
+
+STEP 7: List Deployments (apps/v1)
+---------------------------------
+curl http://127.0.0.1:8001/apis/apps/v1/namespaces/default/deployments
+
+This maps to:
+apiVersion: apps/v1
+
+================================================================================
+
+PART 7: PROVE AUTHORIZATION IS STILL ENFORCED
+---------------------------------------------
+
+STEP 8: Try accessing a forbidden resource
+-------------------------------------------
+(Using a user with limited RBAC)
+
+curl http://127.0.0.1:8001/api/v1/nodes
+
+Result:
+403 Forbidden
+
+CONFIRMATION:
+✔ kubectl proxy does NOT bypass RBAC
+✔ It only simplifies authentication
+
+================================================================================
+
+PART 8: WHAT kubectl proxy ACTUALLY DOES (INTERNAL FLOW)
+--------------------------------------------------------
+
+Request flow you just used:
+curl (HTTP)
+ → kubectl proxy (localhost:8001)
+   → loads kubeconfig
+   → injects credentials
+   → sends HTTPS request
+ → Kubernetes API server
+   → Authentication
+   → Authorization
+   → Admission
+   → Response
+ → kubectl proxy
+ → curl output
+
+IMPORTANT:
+- Credentials NEVER leave your machine
+- API server NEVER listens on HTTP
+- Proxy is NOT a security risk by default
+
+================================================================================
+
+PART 9: SECURITY CHARACTERISTICS
+--------------------------------
+
+kubectl proxy:
+✔ Uses HTTPS to API server
+✔ Never exposes certs
+✔ Never exposes tokens
+✔ Binds only to 127.0.0.1
+✔ Safe for learning & debugging
+
+DO NOT:
+✖ Bind to 0.0.0.0
+✖ Expose on public servers
+
+================================================================================
+
+PART 10: STOP THE PROXY
+-----------------------
+Press:
+CTRL + C
+
+Proxy stops immediately.
+
+================================================================================
+
+WHEN TO USE kubectl proxy
+-------------------------
+✔ Learning Kubernetes API
+✔ Debugging
+✔ API exploration
+✔ Writing scripts with curl
+✔ Avoiding TLS pain
+
+WHEN NOT TO USE
+---------------
+✖ Production automation
+✖ CI/CD pipelines
+✖ External systems
+
+================================================================================
+
+MENTAL MODEL (REMEMBER THIS)
+----------------------------
+kubectl proxy = Authenticated local tunnel to Kubernetes API
+
+================================================================================
+
+FINAL TAKEAWAY
+--------------
+kubectl proxy lets you focus on:
+- Understanding the Kubernetes API
+NOT on:
+- Certificates
+- Tokens
+- TLS plumbing
+
+================================================================================
+END OF PRACTICAL
+================================================================================
+
+If you want next:
+- kubectl port-forward vs proxy
+- RBAC testing via proxy
+- Writing custom API clients
+- CKA/CKS exam-focused questions
+```
 
 ---
 
@@ -564,6 +1319,322 @@ kube-apiserver \
 
 **Note:** ABAC is mainly useful for historical context or academic purposes. **RBAC is the recommended and actively supported authorization mode in Kubernetes today.**
 
+```bash
+==================== ABAC (Attribute-Based Access Control) – COMPLETE PRACTICAL DEMO ====================
+
+⚠️ IMPORTANT CONTEXT
+--------------------
+- ABAC is DEPRECATED
+- NOT recommended for production
+- Still useful to understand:
+  - Kubernetes authorization evolution
+  - Why RBAC exists
+  - Legacy clusters / exams / interviews
+
+This demo is for LEARNING ONLY.
+
+===============================================================================================
+
+GOAL OF THIS PRACTICAL
+----------------------
+- Enable ABAC authorization
+- Write ABAC policy rules
+- Authenticate as a user
+- Prove allowed vs denied actions
+- Understand why ABAC is painful to operate
+
+===============================================================================================
+
+PREREQUISITES
+-------------
+- Single-node cluster (kind / kubeadm / minikube)
+- Access to API server flags
+- Cluster-admin / root access
+- Ability to restart kube-apiserver
+
+⚠️ This is easiest on:
+- kubeadm cluster
+- kind cluster
+- minikube
+
+===============================================================================================
+
+STEP 1: CREATE ABAC POLICY FILE
+--------------------------------
+Create the policy file on the control-plane node.
+
+File: /etc/kubernetes/abac-policy.json
+
+[
+  {
+    "apiVersion": "abac.authorization.kubernetes.io/v1beta1",
+    "kind": "Policy",
+    "spec": {
+      "user": "seema",
+      "namespace": "default",
+      "resource": "pods",
+      "verb": "get"
+    }
+  },
+  {
+    "apiVersion": "abac.authorization.kubernetes.io/v1beta1",
+    "kind": "Policy",
+    "spec": {
+      "user": "seema",
+      "namespace": "default",
+      "resource": "pods",
+      "verb": "list"
+    }
+  }
+]
+
+MEANING:
+- User: seema
+- Namespace: default
+- Resource: pods
+- Allowed verbs: get, list
+
+===============================================================================================
+
+STEP 2: ENABLE ABAC ON API SERVER
+---------------------------------
+Edit kube-apiserver configuration.
+
+If using kubeadm:
+------------------
+Edit static pod manifest:
+
+/etc/kubernetes/manifests/kube-apiserver.yaml
+
+Add / update flags:
+
+--authorization-mode=ABAC
+--authorization-policy-file=/etc/kubernetes/abac-policy.json
+
+Example snippet:
+----------------
+- --authorization-mode=ABAC
+- --authorization-policy-file=/etc/kubernetes/abac-policy.json
+
+IMPORTANT:
+- kube-apiserver WILL restart automatically
+- Any change to policy file later REQUIRES restart again
+
+===============================================================================================
+
+STEP 3: VERIFY API SERVER IS RUNNING
+-----------------------------------
+kubectl get pods -n kube-system | grep kube-apiserver
+
+STATUS should be:
+Running
+
+===============================================================================================
+
+STEP 4: CREATE A USER (seema)
+-----------------------------
+ABAC uses USERNAME from authentication.
+We’ll simulate a user via certificate.
+
+Create a client certificate with CN=seema.
+
+Example (simplified):
+---------------------
+openssl genrsa -out seema.key 2048
+
+openssl req -new -key seema.key \
+  -subj "/CN=seema" \
+  -out seema.csr
+
+Sign with cluster CA (demo setup).
+
+===============================================================================================
+
+STEP 5: CREATE kubeconfig FOR seema
+-----------------------------------
+kubectl config set-credentials seema \
+  --client-certificate=seema.crt \
+  --client-key=seema.key
+
+kubectl config set-context seema-context \
+  --cluster=kubernetes \
+  --user=seema \
+  --namespace=default
+
+kubectl config use-context seema-context
+
+===============================================================================================
+
+STEP 6: TEST ALLOWED ACTION (LIST PODS)
+---------------------------------------
+kubectl get pods
+
+EXPECTED RESULT:
+✔ Pods are listed
+
+WHY?
+- user = seema
+- resource = pods
+- verb = list
+- namespace = default
+→ Rule matches → ALLOWED
+
+===============================================================================================
+
+STEP 7: TEST ALLOWED ACTION (GET POD)
+-------------------------------------
+kubectl get pod <pod-name>
+
+EXPECTED RESULT:
+✔ Pod details shown
+
+WHY?
+- verb = get
+- Explicitly allowed in ABAC policy
+
+===============================================================================================
+
+STEP 8: TEST DENIED ACTION (CREATE POD)
+---------------------------------------
+kubectl run test --image=nginx
+
+EXPECTED RESULT:
+❌ Forbidden
+
+ERROR (example):
+Error from server (Forbidden): pods is forbidden
+
+WHY?
+- verb = create
+- NO rule allowing "create"
+- ABAC rules are explicit
+- No implicit permissions
+
+===============================================================================================
+
+STEP 9: TEST DENIED ACTION (OTHER RESOURCE)
+-------------------------------------------
+kubectl get services
+
+EXPECTED RESULT:
+❌ Forbidden
+
+WHY?
+- resource = services
+- Policy only allows "pods"
+
+===============================================================================================
+
+STEP 10: MODIFY ABAC POLICY (ADD CREATE)
+----------------------------------------
+Edit /etc/kubernetes/abac-policy.json
+
+Add:
+{
+  "apiVersion": "abac.authorization.kubernetes.io/v1beta1",
+  "kind": "Policy",
+  "spec": {
+    "user": "seema",
+    "namespace": "default",
+    "resource": "pods",
+    "verb": "create"
+  }
+}
+
+IMPORTANT:
+🚨 THIS CHANGE DOES NOTHING YET 🚨
+
+===============================================================================================
+
+STEP 11: RESTART API SERVER (REQUIRED!)
+---------------------------------------
+Because ABAC policies are STATIC:
+
+- Restart kube-apiserver
+- (kubeadm users: file change triggers restart automatically)
+
+Verify:
+kubectl get pods -n kube-system
+
+===============================================================================================
+
+STEP 12: RETEST CREATE POD
+-------------------------
+kubectl run test --image=nginx
+
+EXPECTED RESULT:
+✔ Pod created
+
+WHY?
+- New rule loaded after restart
+
+===============================================================================================
+
+WHAT YOU JUST PROVED
+--------------------
+✔ ABAC evaluates rules sequentially
+✔ No roles
+✔ No bindings
+✔ No grouping
+✔ No dynamic updates
+✔ Restart required on every change
+
+===============================================================================================
+
+WHY ABAC IS BAD (REAL-WORLD PROBLEMS)
+-------------------------------------
+❌ Policy file grows HUGE
+❌ Hard to audit
+❌ Hard to reason
+❌ No reuse (copy-paste rules)
+❌ API server restart required
+❌ Error-prone
+❌ Not scalable
+
+===============================================================================================
+
+ABAC vs RBAC (ONE-LINE COMPARISON)
+----------------------------------
+ABAC = Static firewall rules
+RBAC = Structured access model
+
+===============================================================================================
+
+WHEN ABAC IS USED TODAY
+-----------------------
+✔ Historical clusters
+✔ Academic learning
+✔ Interview theory
+❌ Production
+❌ Modern Kubernetes
+
+===============================================================================================
+
+MENTAL MODEL
+------------
+ABAC:
+IF user == X AND verb == Y AND resource == Z → ALLOW
+
+RBAC:
+User → Role → Permissions → Resources
+
+===============================================================================================
+
+FINAL TAKEAWAY
+--------------
+ABAC taught Kubernetes WHAT NOT TO DO.
+RBAC is the answer.
+
+===============================================================================================
+END OF PRACTICAL
+===============================================================================================
+
+If you want next:
+- ABAC → RBAC migration demo
+- Webhook authorization demo
+- RBAC vs ABAC attack scenarios
+- CKA / CKS exam traps explained
+```
 
 ---
 
@@ -598,6 +1669,324 @@ Webhook authorization is valuable when:
 > Webhook authorization offers **maximum flexibility** but adds **external dependencies** and potential latency. It's typically used in **large, security-conscious environments** with strict compliance requirements.
 
 > *Note:* Kubernetes also supports **validating** and **mutating** admission webhooks, which are different mechanisms used during object creation or update for enforcing policies or making changes. These will be covered later in the course when discussing **admission controllers**.
+
+```bash
+==================== ABAC (Attribute-Based Access Control) – COMPLETE PRACTICAL DEMO ====================
+
+⚠️ IMPORTANT CONTEXT
+--------------------
+- ABAC is DEPRECATED
+- NOT recommended for production
+- Still useful to understand:
+  - Kubernetes authorization evolution
+  - Why RBAC exists
+  - Legacy clusters / exams / interviews
+
+This demo is for LEARNING ONLY.
+
+===============================================================================================
+
+GOAL OF THIS PRACTICAL
+----------------------
+- Enable ABAC authorization
+- Write ABAC policy rules
+- Authenticate as a user
+- Prove allowed vs denied actions
+- Understand why ABAC is painful to operate
+
+===============================================================================================
+
+PREREQUISITES
+-------------
+- Single-node cluster (kind / kubeadm / minikube)
+- Access to API server flags
+- Cluster-admin / root access
+- Ability to restart kube-apiserver
+
+⚠️ This is easiest on:
+- kubeadm cluster
+- kind cluster
+- minikube
+
+===============================================================================================
+
+STEP 1: CREATE ABAC POLICY FILE
+--------------------------------
+Create the policy file on the control-plane node.
+
+File: /etc/kubernetes/abac-policy.json
+
+[
+  {
+    "apiVersion": "abac.authorization.kubernetes.io/v1beta1",
+    "kind": "Policy",
+    "spec": {
+      "user": "seema",
+      "namespace": "default",
+      "resource": "pods",
+      "verb": "get"
+    }
+  },
+  {
+    "apiVersion": "abac.authorization.kubernetes.io/v1beta1",
+    "kind": "Policy",
+    "spec": {
+      "user": "seema",
+      "namespace": "default",
+      "resource": "pods",
+      "verb": "list"
+    }
+  }
+]
+
+MEANING:
+- User: seema
+- Namespace: default
+- Resource: pods
+- Allowed verbs: get, list
+
+===============================================================================================
+
+STEP 2: ENABLE ABAC ON API SERVER
+---------------------------------
+Edit kube-apiserver configuration.
+
+If using kubeadm:
+------------------
+Edit static pod manifest:
+
+/etc/kubernetes/manifests/kube-apiserver.yaml
+
+Add / update flags:
+
+--authorization-mode=ABAC
+--authorization-policy-file=/etc/kubernetes/abac-policy.json
+
+Example snippet:
+----------------
+- --authorization-mode=ABAC
+- --authorization-policy-file=/etc/kubernetes/abac-policy.json
+
+IMPORTANT:
+- kube-apiserver WILL restart automatically
+- Any change to policy file later REQUIRES restart again
+
+===============================================================================================
+
+STEP 3: VERIFY API SERVER IS RUNNING
+-----------------------------------
+kubectl get pods -n kube-system | grep kube-apiserver
+
+STATUS should be:
+Running
+
+===============================================================================================
+
+STEP 4: CREATE A USER (seema)
+-----------------------------
+ABAC uses USERNAME from authentication.
+We’ll simulate a user via certificate.
+
+Create a client certificate with CN=seema.
+
+Example (simplified):
+---------------------
+openssl genrsa -out seema.key 2048
+
+openssl req -new -key seema.key \
+  -subj "/CN=seema" \
+  -out seema.csr
+
+Sign with cluster CA (demo setup).
+
+===============================================================================================
+
+STEP 5: CREATE kubeconfig FOR seema
+-----------------------------------
+kubectl config set-credentials seema \
+  --client-certificate=seema.crt \
+  --client-key=seema.key
+
+kubectl config set-context seema-context \
+  --cluster=kubernetes \
+  --user=seema \
+  --namespace=default
+
+kubectl config use-context seema-context
+
+===============================================================================================
+
+STEP 6: TEST ALLOWED ACTION (LIST PODS)
+---------------------------------------
+kubectl get pods
+
+EXPECTED RESULT:
+✔ Pods are listed
+
+WHY?
+- user = seema
+- resource = pods
+- verb = list
+- namespace = default
+→ Rule matches → ALLOWED
+
+===============================================================================================
+
+STEP 7: TEST ALLOWED ACTION (GET POD)
+-------------------------------------
+kubectl get pod <pod-name>
+
+EXPECTED RESULT:
+✔ Pod details shown
+
+WHY?
+- verb = get
+- Explicitly allowed in ABAC policy
+
+===============================================================================================
+
+STEP 8: TEST DENIED ACTION (CREATE POD)
+---------------------------------------
+kubectl run test --image=nginx
+
+EXPECTED RESULT:
+❌ Forbidden
+
+ERROR (example):
+Error from server (Forbidden): pods is forbidden
+
+WHY?
+- verb = create
+- NO rule allowing "create"
+- ABAC rules are explicit
+- No implicit permissions
+
+===============================================================================================
+
+STEP 9: TEST DENIED ACTION (OTHER RESOURCE)
+-------------------------------------------
+kubectl get services
+
+EXPECTED RESULT:
+❌ Forbidden
+
+WHY?
+- resource = services
+- Policy only allows "pods"
+
+===============================================================================================
+
+STEP 10: MODIFY ABAC POLICY (ADD CREATE)
+----------------------------------------
+Edit /etc/kubernetes/abac-policy.json
+
+Add:
+{
+  "apiVersion": "abac.authorization.kubernetes.io/v1beta1",
+  "kind": "Policy",
+  "spec": {
+    "user": "seema",
+    "namespace": "default",
+    "resource": "pods",
+    "verb": "create"
+  }
+}
+
+IMPORTANT:
+🚨 THIS CHANGE DOES NOTHING YET 🚨
+
+===============================================================================================
+
+STEP 11: RESTART API SERVER (REQUIRED!)
+---------------------------------------
+Because ABAC policies are STATIC:
+
+- Restart kube-apiserver
+- (kubeadm users: file change triggers restart automatically)
+
+Verify:
+kubectl get pods -n kube-system
+
+===============================================================================================
+
+STEP 12: RETEST CREATE POD
+-------------------------
+kubectl run test --image=nginx
+
+EXPECTED RESULT:
+✔ Pod created
+
+WHY?
+- New rule loaded after restart
+
+===============================================================================================
+
+WHAT YOU JUST PROVED
+--------------------
+✔ ABAC evaluates rules sequentially
+✔ No roles
+✔ No bindings
+✔ No grouping
+✔ No dynamic updates
+✔ Restart required on every change
+
+===============================================================================================
+
+WHY ABAC IS BAD (REAL-WORLD PROBLEMS)
+-------------------------------------
+❌ Policy file grows HUGE
+❌ Hard to audit
+❌ Hard to reason
+❌ No reuse (copy-paste rules)
+❌ API server restart required
+❌ Error-prone
+❌ Not scalable
+
+===============================================================================================
+
+ABAC vs RBAC (ONE-LINE COMPARISON)
+----------------------------------
+ABAC = Static firewall rules
+RBAC = Structured access model
+
+===============================================================================================
+
+WHEN ABAC IS USED TODAY
+-----------------------
+✔ Historical clusters
+✔ Academic learning
+✔ Interview theory
+❌ Production
+❌ Modern Kubernetes
+
+===============================================================================================
+
+MENTAL MODEL
+------------
+ABAC:
+IF user == X AND verb == Y AND resource == Z → ALLOW
+
+RBAC:
+User → Role → Permissions → Resources
+
+===============================================================================================
+
+FINAL TAKEAWAY
+--------------
+ABAC taught Kubernetes WHAT NOT TO DO.
+RBAC is the answer.
+
+===============================================================================================
+END OF PRACTICAL
+===============================================================================================
+
+If you want next:
+- ABAC → RBAC migration demo
+- Webhook authorization demo
+- RBAC vs ABAC attack scenarios
+- CKA / CKS exam traps explained
+```
+
 ---
 
 ### 4. **Node Authorization**
@@ -698,6 +2087,203 @@ These two modes represent the simplest forms of authorization in Kubernetes:
 
 ---
 
+```bash
+==================== AlwaysAllow / AlwaysDeny AUTHORIZATION MODES – PRACTICAL GUIDE ====================
+
+These are the MOST EXTREME authorization modes in Kubernetes.
+They exist mainly for:
+- Learning
+- Debugging
+- Emergency control
+NOT for real workloads.
+
+======================================================================================
+
+AUTHORIZATION MODES RECAP
+------------------------
+Authorization decides:
+"Is this authenticated identity allowed to perform this action?"
+
+AlwaysAllow and AlwaysDeny answer that question with:
+- AlwaysAllow → YES (for everything)
+- AlwaysDeny  → NO  (for everything)
+
+No RBAC.
+No policies.
+No conditions.
+
+======================================================================================
+
+1️⃣ AlwaysAllow AUTHORIZATION MODE
+---------------------------------
+
+WHAT IT DOES
+------------
+- Skips ALL authorization checks
+- Every authenticated request is allowed
+- RBAC / ABAC / Webhook are bypassed
+
+API SERVER FLAG
+---------------
+--authorization-mode=AlwaysAllow
+
+WHAT HAPPENS INTERNALLY
+-----------------------
+Authentication ✔
+Authorization ✔ (forced allow)
+Admission ✔
+Execution ✔
+
+WHO CAN DO WHAT?
+----------------
+ANY authenticated user can:
+✔ Create / delete Pods
+✔ Read Secrets
+✔ Modify Nodes
+✔ Delete namespaces
+✔ Destroy the cluster
+
+There is NO access control.
+
+======================================================================================
+
+WHEN TO USE AlwaysAllow
+-----------------------
+✔ Local demos
+✔ Temporary debugging
+✔ Verifying authentication problems
+✔ Learning Kubernetes API
+
+WHEN NOT TO USE
+---------------
+❌ Production
+❌ Shared clusters
+❌ Internet-exposed API servers
+❌ Anything with real data
+
+======================================================================================
+
+2️⃣ AlwaysDeny AUTHORIZATION MODE
+--------------------------------
+
+WHAT IT DOES
+------------
+- DENIES every request
+- Even admins are blocked
+- Even system components are blocked
+
+API SERVER FLAG
+---------------
+--authorization-mode=AlwaysDeny
+
+WHAT HAPPENS INTERNALLY
+-----------------------
+Authentication ✔
+Authorization ❌ (forced deny)
+Admission ❌
+Execution ❌
+
+RESULT
+------
+- kubectl stops working
+- Controllers stop
+- Scheduler stops
+- Control plane becomes unusable
+
+======================================================================================
+
+WHEN WOULD AlwaysDeny EVER BE USED?
+-----------------------------------
+✔ Testing failure behavior
+✔ Academic learning
+✔ Emergency API lockdown (VERY RARE)
+
+⚠️ Extremely dangerous if misused
+
+======================================================================================
+
+WHY AlwaysDeny CAN BREAK YOUR CLUSTER
+-------------------------------------
+Kubernetes components (controller-manager, scheduler, kubelets)
+MUST talk to the API server.
+
+AlwaysDeny blocks them all.
+
+Result:
+❌ Cluster freeze
+❌ Requires manual recovery
+
+======================================================================================
+
+HOW TO RECOVER FROM AlwaysDeny (IMPORTANT)
+------------------------------------------
+
+Since kubectl will NOT work, you must:
+
+1) SSH into control-plane node
+2) Edit static Pod manifest:
+   /etc/kubernetes/manifests/kube-apiserver.yaml
+
+3) Replace:
+   --authorization-mode=AlwaysDeny
+
+   With:
+   --authorization-mode=Node,RBAC
+
+4) Save file
+
+➡ kubelet auto-restarts kube-apiserver
+➡ Cluster recovers
+
+======================================================================================
+
+SAFE MODERN DEFAULT (RECOMMENDED)
+--------------------------------
+--authorization-mode=Node,RBAC
+
+This gives:
+✔ Node-scoped permissions for kubelets
+✔ Fine-grained RBAC for users and workloads
+
+======================================================================================
+
+COMPARISON TABLE
+----------------
+
+Mode          | Authorization | Security | Use case
+--------------|---------------|----------|------------------------
+AlwaysAllow  | Allow all     | ❌ None   | Demos / Debug only
+AlwaysDeny   | Deny all      | ❌ Locks  | Testing / Emergency
+RBAC         | Policy-based  | ✔ Strong | Production
+Webhook      | External      | ✔ Strong | Enterprises
+
+======================================================================================
+
+IMPORTANT EXAM & REAL-WORLD NOTES
+--------------------------------
+- AlwaysAllow does NOT disable authentication
+- AlwaysDeny blocks even system components
+- These modes are evaluated BEFORE RBAC
+- If AlwaysAllow or AlwaysDeny is set ALONE,
+  RBAC is ignored
+
+FINAL TAKEAWAY
+--------------
+AlwaysAllow and AlwaysDeny are NOT security features.
+They are CONTROL switches.
+
+Use them only when you:
+✔ Know exactly what you are doing
+✔ Have console access to recover
+✔ Understand the blast radius
+
+======================================================================================
+END OF NOTES
+======================================================================================
+```
+
+---
+
 ## **How to Check and Change the Authorization Mode in Kubernetes**
 
 ### 1. Authorization Happens in the API Server
@@ -773,19 +2359,16 @@ Suppose a user named **Seema** tries to perform an action and Kubernetes is runn
 Here's how her request is processed:
 
 1. **Node Authorization**
-
    * Designed for kubelet requests.
    * Likely returns **“no opinion”** for Seema.
      → Evaluation moves to RBAC.
 
 2. **RBAC Authorization**
-
    * If Seema has the necessary permissions: returns **"allow"** → request is authorized.
    * If explicitly blocked: returns **"deny"** → request is denied.
    * If irrelevant: returns **"no opinion"** → evaluation moves to Webhook.
 
 3. **Webhook Authorization**
-
    * Called **only if both Node and RBAC returned "no opinion"**.
    * Delegates the final decision to an external system.
 

@@ -1,8 +1,3 @@
-Great — here is your **FULL 3-tier PKI (Root CA → Intermediate CA → Server Certificate) tutorial on a Linux server**, using only **OpenSSL**.
-This is the **exact real-world method used by enterprises**, including correct directory structure, permissions, extensions, CRL, OCSP, trust installation — everything.
-
----
-
 # ✅ **FULL 3-TIER PKI GUIDE USING OPENSSL ON LINUX**
 
 This setup includes:

@@ -7,14 +7,15 @@
 - https://devopscube.com/kubernetes-kubeconfig-file/
 - https://freedium-mirror.cfd/https://harsh05.medium.com/kubernetes-service-accounts-simplifying-authentication-and-authorization-07d5c50d2e77
 
+---
+
 * The kubeconfig file is used to access Kubernetes clusters, mainly by the kubectl command-line tool.
 * Kubernetes components like `kubelet`, `kube-controller-manager`, or `kubectl` use the kubeconfig file to interact with the Kubernetes API. Usually, the `kubectl` or oc commands use the kubeconfig file.
 * It contains three major sections:
   * clusters → cluster endpoint and certificate details
   * users → authentication credentials
   * contexts → combination of a cluster + user + namespace
-* The default location of the kubeconfig file is: `$HOME/.kube/config
-`
+* The default location of the kubeconfig file is: `$HOME/.kube/config`
 * In `kubeconfig` PEM format certiticates should be stored in a BASE64 format.
 * You can specify a custom kubeconfig file using:
 ```bash
@@ -26,7 +27,6 @@ kubectl get pods --kubeconfig /my/kubeconfig
 
 export KUBECONFIG=/my/kubeconfig
 kubectl get pods
-
 ```
 
 * `kubeconfig.yaml`
@@ -97,40 +97,40 @@ clusters:
    name: minikube
 contexts:
 - context:
-   cluster: kind-kind
-   user: kind-kind
- name: kind-kind
+    cluster: kind-kind
+    user: kind-kind
+  name: kind-kind
 - context:
-   cluster: kind-ope
-   user: kind-ope
- name: kind-ope
+    cluster: kind-ope
+    user: kind-ope
+  name: kind-ope
 - context:
-   cluster: minikube
-   extensions:
-   - extension:
-       last-update: Thu, 16 Feb 2023 14:50:26 EET
-       provider: minikube.sigs.k8s.io
-       version: v1.28.0
-     name: context_info
-   namespace: default
-   user: minikube
- name: minikube
+    cluster: minikube
+    extensions:
+    - extension:
+        last-update: Thu, 16 Feb 2023 14:50:26 EET
+        provider: minikube.sigs.k8s.io
+        version: v1.28.0
+        name: context_info
+    namespace: default
+    user: minikube
+    name: minikube
 current-context: minikube
 kind: Config
 preferences: {}
 users:
 - name: kind-kind
- user:
-   client-certificate-data: LS0t…
-   client-key-data: LS0t…
+  user:
+    client-certificate-data: LS0t…
+    client-key-data: LS0t…
 - name: kind-ope
- user:
-   client-certificate-data: LS0t..
-   client-key-data: LS0t…
+  user:
+    client-certificate-data: LS0t..
+    client-key-data: LS0t…
 - name: minikube
- user:
-   client-certificate: /Users/flaviuscdinu/.minikube/profiles/minikube/client.crt
-   client-key: /Users/flaviuscdinu/.minikube/profiles/minikube/client.key
+  user:
+    client-certificate: /Users/flaviuscdinu/.minikube/profiles/minikube/client.crt
+    client-key: /Users/flaviuscdinu/.minikube/profiles/minikube/client.key
 ```
 
 * Without a kubeconfig, you would have to connect manually using long flags.
@@ -315,7 +315,32 @@ kubectl config set-cluster staging --server=https://2.2.2.2 --certificate-author
 #If you’re running a local cluster without TLS, you can disable TLS verification instead of supplying certificate authority data:
 kubectl config set-cluster staging --server=https://2.2.2.2 --insecure-skip-tls-verify
 
-kubectl get clusters #List all the clusters from the default config file
+controlplane:~$ kubectl config view
+apiVersion: v1
+clusters:
+- cluster:
+    certificate-authority-data: DATA+OMITTED
+    server: https://172.30.1.2:6443
+  name: kubernetes
+- cluster:
+    insecure-skip-tls-verify: true
+    server: https://2.2.2.2
+  name: staging
+contexts:
+- context:
+    cluster: kubernetes
+    user: kubernetes-admin
+  name: kubernetes-admin@kubernetes
+current-context: kubernetes-admin@kubernetes
+kind: Config
+users:
+- name: kubernetes-admin
+  user:
+    client-certificate-data: DATA+OMITTED
+    client-key-data: DATA+OMITTED
+
+
+kubectl config get-clusters #List all the clusters from the default config file
 
 kubectl config set-credentials production-admin --token=cfrDHdb2 #Add user
 
@@ -339,7 +364,8 @@ kubectl config set-context staging --namespace demo-app #default namespce with c
  kubectl config delete-context staging-context
  kubectl config delete-cluster staging-cluster
 ```
-* Merging a kubeconfig file
+
+**Merging a kubeconfig file**
 ```bash
 export KUBECONFIG=~/.kube/kubeconfig-1:~/.kube/kubeconfig-2
 unset KUBECONFIG
@@ -358,54 +384,162 @@ mv $HOME/.kube/config $HOME/.kube/config.old
 mv $HOME/.kube/config.new $HOME/.kube/config
 
 kubectl config view --minify
-
 ```
 
-* Never Share Kubeconfig Files
+**Never Share Kubeconfig Files**
   Email kubeconfigs
   Upload them to Slack/Teams
   Store them in public S3 buckets
   Keep them in Git repositories
   Accidental exposure of kubeconfigs is one of the most common Kubernetes security mistakes.
 
-* If a Kubeconfig Is Leaked, Act Immediately
-    * Delete the certificate signing request (CSR)
-    * Revoke or rotate the client certificate
-    * Generate a new kubeconfig
-    * `kubectl delete secret <sa-secret>`
-    * `kubectl create token <sa-name>`
-    * For OIDC users
-        * Revoke the refresh token
-        * Force new login
-        * Disable their OIDC session
+**If a Kubeconfig Is Leaked, Act Immediately**
+  * Delete the certificate signing request (CSR)
+  * Revoke or rotate the client certificate
+  * Generate a new kubeconfig
+  * `kubectl delete secret <sa-secret>`
+  * `kubectl create token <sa-name>`
+  * For OIDC users
+    * Revoke the refresh token
+    * Force new login
+    * Disable their OIDC session
 
-* Kubeconfig best practices
-    * use short lived credentials
+**Kubeconfig best practices**
+  * use short lived credentials
+
+```bash
+#ROTATE / REVOKE CLIENT CERTIFICATES
+
+#Find the old user + cert
+kubectl config get-contexts
+kubectl config view
+
+#Delete any pending or approved CSR for that user
+kubectl get csr
+kubectl delete csr <csr-name>
+
+#If Kubernetes CA issued it
+#(you cannot revoke; you replace certificates)
+#Generate a new private key + CSR
+
+openssl genrsa -out new-user.key 2048
+
+openssl req -new -key new-user.key \
+  -subj "/CN=myuser/O=developers" \
+  -out new-user.csr
+
+#Submit CSR to Kubernetes
+
+cat <<EOF | kubectl apply -f -
+apiVersion: certificates.k8s.io/v1
+kind: CertificateSigningRequest
+metadata:
+  name: myuser
+spec:
+  request: $(base64 -w0 < new-user.csr)
+  signerName: kubernetes.io/kube-apiserver-client
+  usages:
+  - client auth
+EOF
+
+#Approve CSR
+kubectl certificate approve myuser
+
+#Download signed certificate
+kubectl get csr myuser -o jsonpath='{.status.certificate}' \
+  | base64 --decode > new-user.crt
+
+#Remove access of leaked cert
+kubectl config unset users.myuser
+
+kubectl config unset contexts.myuser-context
+
+rm -f ~/.kube/leaked-config   #(optional)
+
+
+#USING EXTERNAL CA (Vault, CFSSL, etc.)
+#Revoke certificate
+#CFSSL:
+cfssl revoke -serial <serial-number>
+#Vault:
+vault write pki_int/revoke serial_number=<serial>
+
+#Issue new cert
+#CFSSL:
+cfssl genkey -initca myuser.json | cfssljson -bare myuser
+#Vault:
+vault write pki_int/issue/dev-role common_name="myuser"
+
+#Remove old kubeconfig entry
+kubectl config unset users.myuser
+kubectl config unset contexts.myuser-context
+
+#GENERATE NEW KUBECONFIG WITH CERTS
+#Create kubeconfig entries
+kubectl config set-credentials myuser \
+  --client-certificate=new-user.crt \
+  --client-key=new-user.key
+
+kubectl config set-context myuser-context \
+  --cluster=kubernetes \
+  --user=myuser \
+  --namespace=default
+
+kubectl config use-context myuser-context
+#(Or export to a separate file)
+export KUBECONFIG=./new-kubeconfig
+
+#Test access
+kubectl get pods
+
+#SERVICE ACCOUNT TOKENS (FASTER METHOD)
+#Create a new SA
+kubectl create sa new-sa -n myns
+
+#Reapply roles
+kubectl create rolebinding new-sa-rb \
+  --role=myrole \
+  --serviceaccount=myns:new-sa \
+  -n myns
+
+#Generate new token
+kubectl create token new-sa -n myns
+
+#Delete old SA secret/token
+kubectl delete secret <old-sa-secret> -n myns
+
+#VALIDATE OLD ACCESS IS DEAD
+#Use old kubeconfig:
+KUBECONFIG=old.kubeconfig kubectl get pods
+
+#Expected response:
+#Unauthorized or Forbidden
+```
 
 ---
 ---
 
-# **Kubeconfig and Security (Full Detailed Explanation)**
+### **Kubeconfig and Security (Full Detailed Explanation)**
 Kubeconfig files are **high-risk security assets** because they contain everything required to authenticate to a Kubernetes cluster. Whether you merge multiple kubeconfigs into one or keep them separate, the security risk remains the same:
 
-**Anyone who gains access to your kubeconfig file gains access to your cluster.**
+### **Anyone who gains access to your kubeconfig file gains access to your cluster.**
 For this reason, kubeconfigs must be protected with the same seriousness as SSH private keys, cloud access keys, or passwords.
 
-# **Treat Kubeconfig Files as Highly Sensitive Credentials**
-A kubeconfig may contain:
-* Client certificates
-* Private keys
-* Bearer tokens (service account tokens)
-* OIDC ID tokens
-* Refresh tokens
-* API server endpoints
-* Usernames and groups
-With these, an attacker can impersonate you and perform *any action* that your credentials allow.
+### **Treat Kubeconfig Files as Highly Sensitive Credentials**
+  A kubeconfig may contain:
+  * Client certificates
+  * Private keys
+  * Bearer tokens (service account tokens)
+  * OIDC ID tokens
+  * Refresh tokens
+  * API server endpoints
+  * Usernames and groups
+  With these, an attacker can impersonate you and perform *any action* that your credentials allow.
 
 **Never share kubeconfig files with anyone, including teammates, unless absolutely required.**
 
-# **Prevent Accidental Exposure**
-### 🔹 DO NOT commit kubeconfigs to Git
+### **Prevent Accidental Exposure**
+##### 🔹 DO NOT commit kubeconfigs to Git
 Use `.gitignore` to avoid accidental commits:
 ```
 .kube/
@@ -414,7 +548,7 @@ Use `.gitignore` to avoid accidental commits:
 *.key
 ```
 
-### 🔹 DO NOT upload to storage or chat apps
+##### 🔹 DO NOT upload to storage or chat apps
 Avoid sending kubeconfigs through:
 * Slack
 * Teams
@@ -423,42 +557,42 @@ Avoid sending kubeconfigs through:
 * Pastebin
 * Shared S3 buckets (unless encrypted)
 
-### 🔹 Use strict file permissions
+##### 🔹 Use strict file permissions
 ```
 chmod 600 ~/.kube/config
 ```
 
-# **3️⃣ What To Do If a Kubeconfig Is Leaked**
+### **3️⃣ What To Do If a Kubeconfig Is Leaked**
 If you suspect accidental exposure:
-### ✔ Immediately revoke credentials
+##### ✔ Immediately revoke credentials
 For users using client certificates:
 ```
 kubectl delete csr <csr-name>
 ```
 Or rotate the certificate pair.
 
-### ✔ For service accounts
+##### ✔ For service accounts
 Regenerate token:
 ```
 kubectl delete secret <sa-secret>
 kubectl create token <service-account>
 ```
 
-### ✔ For OIDC users
+##### ✔ For OIDC users
 Revoke the token from the identity provider:
 * Keycloak: revoke session
 * Okta: revoke refresh token
 * Google/AzureAD: disable app session
 
-### ✔ For static tokens
+##### ✔ For static tokens
 Edit API server token file to remove or rotate it.
 **Never continue using a compromised kubeconfig.**
 
-# **4️⃣ Beware of Malicious Kubeconfig Files**
+### **4️⃣ Beware of Malicious Kubeconfig Files**
 Most people believe kubeconfigs are “just YAML”…
 But kubeconfigs can contain **executable commands** via auth plugins.
 
-### ⚠️ Example of a malicious kubeconfig:
+##### ⚠️ Example of a malicious kubeconfig:
 ```yaml
 users:
 - name: attacker
@@ -492,7 +626,7 @@ Check especially for:
 
 Treat unknown kubeconfig files **as dangerous as shell scripts**.
 
-# **5️⃣ Rotate Credentials Regularly**
+### **5️⃣ Rotate Credentials Regularly**
 To reduce risk:
 * Rotate client certificates regularly
 * Rotate service account tokens
@@ -501,36 +635,36 @@ To reduce risk:
 * Delete stale kubeconfigs after use
 This minimizes the damage in case of theft.
 
-# **6️⃣ Tools to Improve Kubeconfig Security and Management**
-Here is the continuation of the line “Tools t…” in your text:
-### **✔ kubectx**
+### **Tools to Improve Kubeconfig Security and Management**
+
+##### **✔ kubectx**
 Fast context switching
 ```
 kubectl krew install ctx
 ```
-### **✔ kubens**
 
+##### **✔ kubens**
 Fast namespace switching
 ```
 kubectl krew install ns
 ```
 
-### **✔ kube-ps1**
+##### **✔ kube-ps1**
 Displays current context + namespace in your shell prompt.
 
-### **✔ stern / k9s**
+##### **✔ stern / k9s**
 Useful while working in multiple environments to prevent mistakes.
 
-### **✔ sops or age**
+##### **✔ sops or age**
 Encrypt kubeconfigs at rest if storing in GitOps or CI/CD.
 
-### **✔ sealed-secrets or external-secrets**
+##### **✔ sealed-secrets or external-secrets**
 Do NOT store kubeconfigs directly in Git — use secrets-management tools.
 
-### **✔ vault (HashiCorp Vault)**
+##### **✔ vault (HashiCorp Vault)**
 Store kubeconfigs or dynamically generate short-lived tokens.
 
-### **✔ aws-vault / gcloud auth / azure identity**
+##### **✔ aws-vault / gcloud auth / azure identity**
 Use short-lived credentials instead of static kubeconfig keys.
 
 ---

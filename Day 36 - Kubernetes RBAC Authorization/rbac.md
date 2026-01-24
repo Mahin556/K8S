@@ -8,9 +8,10 @@
 - https://kubernetes.io/docs/reference/access-authn-authz/authentication/
 - https://freedium-mirror.cfd/https://harsh05.medium.com/kubernetes-service-accounts-simplifying-authentication-and-authorization-07d5c50d2e77
 
-
+---
 
 ```bash
+
 kubectl config view -o jsonpath='{.users[?(@.name=="minikube")].user.client-certificate}' #Check certificates of speicifc user
 
 openssl x509 -in /Users/adityasamant/.minikube/profiles/minikube/client.crt -text -noout | grep Subject | grep -v "Public Key Info"
@@ -40,39 +41,22 @@ kubectl auth can-i create pods --as=poweruser --as-group=example:masters
 |                                | `escalate`         | Grant permissions higher than you currently have     |
 | **Wildcard (Dangerous)**       | `*`                | Grants **all** verbs (highest risk)                  |
 
-* **API Groups Table**
-
-| API Group         | Value                         | Examples of Resources                                          | Description                                |
-| ----------------- | ----------------------------- | -------------------------------------------------------------- | ------------------------------------------ |
-| **Core (Legacy)** | `""` (empty string)           | `pods`, `services`, `configmaps`, `secrets`, `namespaces`      | Base Kubernetes resources; core v1 API     |
-| **Apps**          | `"apps"`                      | `deployments`, `replicasets`, `daemonsets`, `statefulsets`     | Modern workload API; preferred for apps    |
-| **Networking**    | `"networking.k8s.io"`         | `networkpolicies`, `ingresses`                                 | Traffic flow + ingress rules               |
-| **RBAC**          | `"rbac.authorization.k8s.io"` | `roles`, `rolebindings`, `clusterroles`, `clusterrolebindings` | RBAC access control resources              |
-| **Batch**         | `"batch"`                     | `jobs`, `cronjobs`                                             | Background processing, scheduled workloads |
-| **Autoscaling**   | `"autoscaling"`               | `horizontalpodautoscalers`                                     | HPA objects                                |
-| **Storage**       | `"storage.k8s.io"`            | `storageclasses`, `csidrivers`                                 | Storage configuration                      |
-
-
-* Enable RBAC in kubernetes.
-    ```bash
-    kubectl api-version | grep -i rbac.authorization.k8s.io
-    ```
 
 * Role give permission in specific namespace
-    ```bash
-    kubectl create namespace development
-    ```
-    ```yaml
-    apiVersion: rbac.authorization.k8s.io/v1
-    kind: Role
-    metadata:
-    namespace: development
-    name: developer-role
-    rules:
-    - apiGroups: [""]
-        resources: ["pods"]
-        verbs: ["get", "list"]
-    ```
+```bash
+kubectl create namespace development
+```
+```yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: development
+  name: developer-role
+rules:
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "list"]
+```
 
 * RoleBinding link a role to user,group,service account.
 ```yaml
@@ -92,33 +76,34 @@ roleRef:
 ```
 
 * To give access to all resources on all namespaces
-    * Cluster Role
-        ```yaml
-        apiVersion: rbac.authorization.k8s.io/v1
-        kind: ClusterRole
-        metadata:
-        name: cluster-viewer
-        rules:
-        - apiGroups: [""]
-        resources: ["pods"]
-        verbs: ["get", "list"]
-        ```
 
-    * Binding a ClusterRole to ClusterRoleBinding
-        ```yaml
-        apiVersion: rbac.authorization.k8s.io/v1
-        kind: ClusterRoleBinding
-        metadata:
-        name: cluster-viewer-binding
-        subjects:
-        - kind: User
-        name: alice
-        apiGroup: rbac.authorization.k8s.io
-        roleRef:
-        kind: ClusterRole
-        name: cluster-viewer
-        apiGroup: rbac.authorization.k8s.io
-        ```
+* Cluster Role
+```yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: cluster-viewer
+rules:
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "list"]
+```
+
+* Binding a ClusterRole to ClusterRoleBinding
+```yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: cluster-viewer-binding
+subjects:
+- kind: User
+  name: alice
+  apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: ClusterRole
+  name: cluster-viewer
+  apiGroup: rbac.authorization.k8s.io
+```
 
 ```bash
 kubectl auth can-i list pods --namespace=development --as=alice
@@ -149,11 +134,10 @@ rules:
 - apiGroups: [""]
   resources: ["pods"]
   verbs: ["get","list","create","delete"]
-
 #This role (pod-manager) allows the developer to get, list, create, and delete pods within the development namespace.
 
-
 ---
+
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
@@ -169,8 +153,9 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
 #This role binding (pod-manager-binding) binds the pod-manager role to the developer user within the development namespace.
 
-# ClusterRole + ClusterRoleBinding
 ---
+
+# ClusterRole + ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
@@ -181,8 +166,8 @@ rules:
   verbs: ["get","list"]
 #This cluster role (node-viewer) allows the ops-team group to get and list nodes across the entire cluster.
 
-
 ---
+
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
@@ -196,77 +181,82 @@ roleRef:
   name: node-viewer
   apiGroup: rbac.authorization.k8s.io
 #This cluster role binding (node-viewer-binding) binds the node-viewer cluster role to the ops-team group, allowing them to view nodes across the entire cluster.
-
 ```
 
 ```bash
 #To create a new Kubernetes user (e.g., “anvesh”), follow these steps:
 #1. Generate User Key + CSR:
-   openssl genrsa -out anvesh.pem 4096
-   openssl req -new -key anvesh.pem -out anvesh.csr -subj "/CN=anvesh"
+openssl genrsa -out anvesh.pem 4096
+openssl req -new -key anvesh.pem -out anvesh.csr -subj "/CN=anvesh"
 
 #2. Create Kubernetes CSR:
-   BASE64=$(cat anvesh.csr | base64 | tr -d '\n')
-   cat <<EOF | kubectl apply -f -
-   apiVersion: certificates.k8s.io/v1
-   kind: CertificateSigningRequest
-   metadata:
-     name: anvesh
-   spec:
-     request: $BASE64
-     signerName: kubernetes.io/kube-apiserver-client
-     expirationSeconds: 86400
-     usages: ["digital signature","key encipherment","client auth"]
-   EOF
+BASE64=$(cat anvesh.csr | base64 | tr -d '\n')
+  
+cat <<EOF | kubectl apply -f -
+apiVersion: certificates.k8s.io/v1
+kind: CertificateSigningRequest
+metadata:
+  name: anvesh
+spec:
+  request: $BASE64
+  signerName: kubernetes.io/kube-apiserver-client
+  expirationSeconds: 86400
+  usages: ["digital signature","key encipherment","client auth"]
+EOF
 
 #3. Approve & Retrieve Certificate:
-   kubectl certificate approve anvesh
-   kubectl get csr/anvesh -o jsonpath='{.status.certificate}' | base64 -d > anvesh.crt
+kubectl certificate approve anvesh
+kubectl get csr/anvesh -o jsonpath='{.status.certificate}' | base64 -d > anvesh.crt
 
 #4. Create User kubeconfig:
-   KCFG=~/.kube/config-anvesh
-   API_SERVER=<https_endpoint>
-   kubectl --kubeconfig=$KCFG config set-cluster preprod --server=$API_SERVER --insecure-skip-tls-verify=true
-   kubectl --kubeconfig=$KCFG config set-credentials anvesh --client-certificate=anvesh.crt --client-key=anvesh.pem --embed-certs=true
-   kubectl --kubeconfig=$KCFG config set-context default --cluster=preprod --user=anvesh
-   kubectl --kubeconfig=$KCFG config use-context default
+KCFG=~/.kube/config-anvesh
+
+API_SERVER=<https_endpoint>
+
+kubectl --kubeconfig=$KCFG config set-cluster preprod --server=$API_SERVER --insecure-skip-tls-verify=true
+
+kubectl --kubeconfig=$KCFG config set-credentials anvesh --client-certificate=anvesh.crt --client-key=anvesh.pem --embed-certs=true
+
+kubectl --kubeconfig=$KCFG config set-context default --cluster=preprod --user=anvesh
+
+kubectl --kubeconfig=$KCFG config use-context default
 
 #5. Give Namespace Permissions (Role + RoleBinding):
-   #Role:
-     apiVersion: rbac.authorization.k8s.io/v1
-     kind: Role
-     metadata: {namespace: kube-system, name: pod-reader}
-     rules: [{apiGroups:[""], resources:["pods"], verbs:["get","list"]}]
+#Role:
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata: {namespace: kube-system, name: pod-reader}
+rules: [{apiGroups:[""], resources:["pods"], verbs:["get","list"]}]
 
-   #RoleBinding:
-     apiVersion: rbac.authorization.k8s.io/v1
-     kind: RoleBinding
-     metadata: {name: anvesh-pod-reader, namespace: kube-system}
-     subjects: [{kind: User, name: anvesh}]
-     roleRef: {kind: Role, name: pod-reader, apiGroup: rbac.authorization.k8s.io}
+#RoleBinding:
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata: {name: anvesh-pod-reader, namespace: kube-system}
+subjects: [{kind: User, name: anvesh}]
+roleRef: {kind: Role, name: pod-reader, apiGroup: rbac.authorization.k8s.io}
 
-   kubectl apply -f role.yaml
-   kubectl apply -f rolebinding.yaml
+kubectl apply -f role.yaml
+kubectl apply -f rolebinding.yaml
 
 #6. Test:
-   kubectl --kubeconfig ~/.kube/config-anvesh get pods -n kube-system
+kubectl --kubeconfig ~/.kube/config-anvesh get pods -n kube-system
 
 #7. Cluster-wide Access (ClusterRole + ClusterRoleBinding):
-   #ClusterRole:
-     apiVersion: rbac.authorization.k8s.io/v1
-     kind: ClusterRole
-     metadata: {name: pod-lister}
-     rules: [{apiGroups:[""], resources:["pods"], verbs:["get","list"]}]
+#ClusterRole:
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata: {name: pod-lister}
+rules: [{apiGroups:[""], resources:["pods"], verbs:["get","list"]}]
 
-   #ClusterRoleBinding:
-     apiVersion: rbac.authorization.k8s.io/v1
-     kind: ClusterRoleBinding
-     metadata: {name: anvesh-pod-lister}
-     subjects: [{kind: User, name: anvesh}]
-     roleRef: {kind: ClusterRole, name: pod-lister, apiGroup: rbac.authorization.k8s.io}
+#ClusterRoleBinding:
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata: {name: anvesh-pod-lister}
+subjects: [{kind: User, name: anvesh}]
+roleRef: {kind: ClusterRole, name: pod-lister, apiGroup: rbac.authorization.k8s.io}
 
-   kubectl apply -f clusterrole.yaml
-   kubectl apply -f clusterrolebinding.yaml
+kubectl apply -f clusterrole.yaml
+kubectl apply -f clusterrolebinding.yaml
 
 #Now “anvesh” can list pods namespace-wide or cluster-wide depending on the RBAC applied.
 #Forbidden errors occur when no RBAC permissions are granted.
@@ -334,7 +324,7 @@ roleRef:
 
 ```bash
 kubectl describe clusterrole pv-sc-access | grep -A20 PolicyRule
-
+```
 
 ---
 ---
@@ -434,102 +424,102 @@ roleRef:
 * A ClusterRole is cluster-wide (not tied to any namespace), but a RoleBinding is namespace-scoped.
 * So when a ClusterRole is attached to a ServiceAccount via a RoleBinding, the permissions apply only in that RoleBinding's namespace.
 * We create a `RoleBinding` in the `test3` namespace that gives our ServiceAccount (myaccount in namespace test) the permissions of the cluster-wide role cluster-admin.
-```yaml
-subjects:
-- kind: ServiceAccount
-  name: myaccount
-  namespace: test
-```
-```yaml
-kind: ClusterRole
-apiVersion: rbac.authorization.k8s.io/v1
-metadata:
-  name: cluster-admin
-rules:
-- apiGroups: ["*"]
-  resources: ["*"]
-  verbs: ["*"]
-```
-```yaml
-kind: RoleBinding
-apiVersion: rbac.authorization.k8s.io/v1
-metadata:
-  name: testadminbinding
-  namespace: test3
-subjects:
-- kind: ServiceAccount
-  name: myaccount
-  namespace: test
-  apiGroup: ""
-roleRef:
+  ```yaml
+  subjects:
+  - kind: ServiceAccount
+    name: myaccount
+    namespace: test
+  ```
+  ```yaml
   kind: ClusterRole
-  name: cluster-admin
-  apiGroup: ""
-```
+  apiVersion: rbac.authorization.k8s.io/v1
+  metadata:
+    name: cluster-admin
+  rules:
+  - apiGroups: ["*"]
+    resources: ["*"]
+    verbs: ["*"]
+  ```
+  ```yaml
+  kind: RoleBinding
+  apiVersion: rbac.authorization.k8s.io/v1
+  metadata:
+    name: testadminbinding
+    namespace: test3
+  subjects:
+  - kind: ServiceAccount
+    name: myaccount
+    namespace: test
+    apiGroup: ""
+  roleRef:
+    kind: ClusterRole
+    name: cluster-admin
+    apiGroup: ""
+  ```
 * The service account now has the full cluster-admin capabilities, but only inside the test3 namespace:
-```bash
-$ kubectl get rolebindings -n test3
-NAME               ROLE                        AGE
-testadminbinding   ClusterRole/cluster-admin   21m
-```
+  ```bash
+  $ kubectl get rolebindings -n test3
+  NAME               ROLE                        AGE
+  testadminbinding   ClusterRole/cluster-admin   21m
+  ```
 * Even though the SA is bound to a ClusterRole, permissions do not extend to other namespaces.
-```bash
-$ kubectl get roles -n test4
-Error from server (Forbidden): roles.rbac.authorization.k8s.io is forbidden: \
-User "system:serviceaccount:test:myaccount" cannot list resource "roles" \
-in API group "rbac.authorization.k8s.io" in the namespace "test4"
-```
+  ```bash
+  $ kubectl get roles -n test4
+  Error from server (Forbidden): roles.rbac.authorization.k8s.io is forbidden: \
+  User "system:serviceaccount:test:myaccount" cannot list resource "roles" \
+  in API group "rbac.authorization.k8s.io" in the namespace "test4"
+  ```
 * A ClusterRole is cluster-scoped, but RoleBindings are namespace-scoped.
 * You cannot bind a ClusterRole to multiple namespaces with one RoleBinding.
 * You must create one RoleBinding per namespace and reference the same ClusterRole.
 * Bind the ServiceAccount to this ClusterRole in dev, qa, prod namespace.
-```yaml
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  name: access-multi-ns
-  namespace: dev
-subjects:
-- kind: ServiceAccount
-  name: myaccount
-  namespace: test
-roleRef:
-  kind: ClusterRole
-  name: multi-namespace-admin
-  apiGroup: rbac.authorization.k8s.io
+  ```yaml
+  apiVersion: rbac.authorization.k8s.io/v1
+  kind: RoleBinding
+  metadata:
+    name: access-multi-ns
+    namespace: dev
+  subjects:
+  - kind: ServiceAccount
+    name: myaccount
+    namespace: test
+  roleRef:
+    kind: ClusterRole
+    name: multi-namespace-admin
+    apiGroup: rbac.authorization.k8s.io
 
----
+  ---
 
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  name: access-multi-ns
-  namespace: qa
-subjects:
-- kind: ServiceAccount
-  name: myaccount
-  namespace: test
-roleRef:
-  kind: ClusterRole
-  name: multi-namespace-admin
-  apiGroup: rbac.authorization.k8s.io
+  apiVersion: rbac.authorization.k8s.io/v1
+  kind: RoleBinding
+  metadata:
+    name: access-multi-ns
+    namespace: qa
+  subjects:
+  - kind: ServiceAccount
+    name: myaccount
+    namespace: test
+  roleRef:
+    kind: ClusterRole
+    name: multi-namespace-admin
+    apiGroup: rbac.authorization.k8s.io
 
----
+  ---
 
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  name: access-multi-ns
-  namespace: prod
-subjects:
-- kind: ServiceAccount
-  name: myaccount
-  namespace: test
-roleRef:
-  kind: ClusterRole
-  name: multi-namespace-admin
-  apiGroup: rbac.authorization.k8s.io
-```
+  apiVersion: rbac.authorization.k8s.io/v1
+  kind: RoleBinding
+  metadata:
+    name: access-multi-ns
+    namespace: prod
+  subjects:
+  - kind: ServiceAccount
+    name: myaccount
+    namespace: test
+  roleRef:
+    kind: ClusterRole
+    name: multi-namespace-admin
+    apiGroup: rbac.authorization.k8s.io
+  ```
 ---
 * A ClusterRole is not namespaced, and a ClusterRoleBinding is also not namespaced.
 So when you bind a ClusterRole to a ServiceAccount using a ClusterRoleBinding:
@@ -537,151 +527,150 @@ So when you bind a ClusterRole to a ServiceAccount using a ClusterRoleBinding:
   * All namespaces become accessible.
   * Resource scope is cluster-wide.
 
-```yaml
-kind: ClusterRole
-apiVersion: rbac.authorization.k8s.io/v1
-metadata:
-  name: cluster-admin
-rules:
-- apiGroups: ["*"]
-  resources: ["*"]
-  verbs: ["*"]
-```
-```yaml
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: testadminclusterbinding
-subjects:
-- kind: ServiceAccount
-  name: myaccount
-  namespace: test
-  apiGroup: ""
-roleRef:
+  ```yaml
   kind: ClusterRole
-  name: cluster-admin
-  apiGroup: rbac.authorization.k8s.io
-```
+  apiVersion: rbac.authorization.k8s.io/v1
+  metadata:
+    name: cluster-admin
+  rules:
+  - apiGroups: ["*"]
+    resources: ["*"]
+    verbs: ["*"]
+  ```
+  ```yaml
+  apiVersion: rbac.authorization.k8s.io/v1
+  kind: ClusterRoleBinding
+  metadata:
+    name: testadminclusterbinding
+  subjects:
+  - kind: ServiceAccount
+    name: myaccount
+    namespace: test
+    apiGroup: ""
+  roleRef:
+    kind: ClusterRole
+    name: cluster-admin
+    apiGroup: rbac.authorization.k8s.io
+  ```
 
 
 ---
 ---
+
 * Check whether RBAC is enabled.
 * RBAC is technically an optional Kubernetes feature, although it’s enabled by default in popular distributions. 
-```bash
-kubectl api-versions | grep rbac
-```
+  ```bash
+  kubectl api-versions | grep rbac
+  ```
 * To manually enable RBAC support, you must start the Kubernetes API server with the --authorization-mode=RBAC flag set:
-```bash
-kube-apiserver --authorization-mode=RBAC
-```
+  ```bash
+  kube-apiserver --authorization-mode=RBAC
+  ```
 ---
 * Service Account Management in Kubernetes
 * Service Accounts are identities used by pods and automation inside Kubernetes.
 * They allow workloads to authenticate to the API server securely and perform only the actions they've been granted.
+  ```bash
+  #Create a Service Account
+  kubectl create serviceaccount demo-user
 
-```bash
-#Create a Service Account
-kubectl create serviceaccount demo-user
+  #Create an authorization token for your Service Account:
+  TOKEN=$(kubectl create token demo-user)
 
-#Create an authorization token for your Service Account:
-TOKEN=$(kubectl create token demo-user)
+  #Add serice account credentials into kubeconfig file
+  kubectl config set-credentials demo-user --token=$TOKEN
 
-#Add serice account credentials into kubeconfig file
-kubectl config set-credentials demo-user --token=$TOKEN
+  #Add a context that bind user account with the cluster
+  kubectl config set-context demo-user-context --cluster=default --user=demo-user
 
-#Add a context that bind user account with the cluster
-kubectl config set-context demo-user-context --cluster=default --user=demo-user
+  #Check current context
+  kubectl config current-context
 
-#Check current context
-kubectl config current-context
+  #Switch contect
+  kubectl config use-context demo-user-context
 
-#Switch contect
-kubectl config use-context demo-user-context
+  #Without any kind of authorication using RBAC
+  kubectl get pods
+  #Error from server (Forbidden): pods is forbidden: User "system:serviceaccount:default:demo-user" cannot list resource "pods" in API group "" in the namespace "default
 
-#Without any kind of authorication using RBAC
-kubectl get pods
-#Error from server (Forbidden): pods is forbidden: User "system:serviceaccount:default:demo-user" cannot list resource "pods" in API group "" in the namespace "default
-
-kubectl apply -f -<<EOF
-apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
-metadata:
-  name: demo-role
-  namespace: default
-rules:
-  - apiGroups:
-      - ""
-    resources:
-      - pods
-    verbs:
-      - get
-      - list
-      - create
-      - update
-EOF
-
-kubectl apply -f -<<EOF
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  name: demo-role-binding
-  namespace: default
-roleRef: #Identifies the Role object that is being assigned.
-  apiGroup: rbac.authorization.k8s.io
+  kubectl apply -f -<<EOF
+  apiVersion: rbac.authorization.k8s.io/v1
   kind: Role
-  name: demo-role
-subjects: #A list of one or more users or Service Accounts to assign the Role to.
-- namespace: default
+  metadata:
+    name: demo-role
+    namespace: default
+  rules:
+    - apiGroups:
+        - ""
+      resources:
+        - pods
+      verbs:
+        - get
+        - list
+        - create
+        - update
+  EOF
+
+  kubectl apply -f -<<EOF
+  apiVersion: rbac.authorization.k8s.io/v1
+  kind: RoleBinding
+  metadata:
+    name: demo-role-binding
+    namespace: default
+  roleRef: #Identifies the Role object that is being assigned.
+    apiGroup: rbac.authorization.k8s.io
+    kind: Role
+    name: demo-role
+  subjects: #A list of one or more users or Service Accounts to assign the Role to.
+  - namespace: default
+    kind: ServiceAccount
+    name: demo-user
+    apiGroup: ""
+  EOF
+
+  kubectl config use-context demo-user-context
+
+  kubectl get pods
+
+  kubectl run nginx --image=nginx:latest
+
+  kubectl get pods -n test3 --as=system:serviceaccount:test:myaccount
+  ```
+  ```yaml
+  apiVersion: v1
   kind: ServiceAccount
-  name: demo-user
-  apiGroup: ""
-EOF
-
-kubectl config use-context demo-user-context
-
-kubectl get pods
-
-kubectl run nginx --image=nginx:latest
-
-kubectl get pods -n test3 --as=system:serviceaccount:test:myaccount
-
-```
-```yaml
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: app-service-account
-  namespace: production
-automountServiceAccountToken: true
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
-metadata:
-  namespace: production
-  name: app-role
-rules:
-- apiGroups: [""]
-  resources: ["configmaps", "secrets"]
-  verbs: ["get", "list", "watch"]
-- apiGroups: [""]
-  resources: ["pods"]
-  verbs: ["get", "list"]
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  name: app-role-binding
-  namespace: production
-subjects:
-- kind: ServiceAccount
-  name: app-service-account
-  namespace: production
-roleRef:
+  metadata:
+    name: app-service-account
+    namespace: production
+  automountServiceAccountToken: true
+  ---
+  apiVersion: rbac.authorization.k8s.io/v1
   kind: Role
-  name: app-role
-  apiGroup: rbac.authorization.k8s.io
-```
+  metadata:
+    namespace: production
+    name: app-role
+  rules:
+  - apiGroups: [""]
+    resources: ["configmaps", "secrets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list"]
+  ---
+  apiVersion: rbac.authorization.k8s.io/v1
+  kind: RoleBinding
+  metadata:
+    name: app-role-binding
+    namespace: production
+  subjects:
+  - kind: ServiceAccount
+    name: app-service-account
+    namespace: production
+  roleRef:
+    kind: Role
+    name: app-role
+    apiGroup: rbac.authorization.k8s.io
+  ```
 * Disable token auto-mounting unless needed
   * To prevent workloads from accidentally accessing API credentials:
     ```yaml
@@ -699,7 +688,7 @@ roleRef:
     metadata:
       name: secure-pod
     spec:
-      serviceAccountName: app-service-account
+      serviceAccountName: non-api-app
       automountServiceAccountToken: false  # Overrides SA defaults
       containers:
       - name: app
@@ -723,8 +712,8 @@ roleRef:
     namespace: production
     annotations:
       kubernetes.io/service-account.name: app-service-account
+  type: kubernetes.io/service-account-token
   ```
-
 
 ---
 
@@ -753,6 +742,7 @@ kubectl auth can-i get pv --as david
 
 # Test monitoring permissions
 kubectl auth can-i get pods --as=monitoring-user --all-namespaces
+kubectl auth can-i list pods --as=system:serviceaccount:<namespace>:<serviceaccountname> -n <namespace>
 kubectl auth can-i get secrets --as=monitoring-user
 # List all permissions for a user
 kubectl auth can-i --list --as=alice -n rbac-demo
@@ -888,6 +878,9 @@ rules:
   resources: ["servicemonitors", "prometheusrules"]
   verbs: ["*"]
 ```
+
+---
+
 * Custom Resource API Groups & Their Meaning
 
 | API Group               | Installed By            | Type of Resources (CRDs)                                             | Purpose / What They Configure                          | Notes                               |
@@ -906,6 +899,7 @@ rules:
 
 
 ---
+
 ```yaml
 #ReadOnly Role Template
 apiVersion: rbac.authorization.k8s.io/v1
@@ -1026,96 +1020,6 @@ subjects:
   name: monitoring-agent
   namespace: monitoring
 ```
----
-* Monitoring and Troubleshooting (RBAC)
-* Enable Audit Logging `/etc/kubernetes/audit-policy.yaml`
-```yaml
-apiVersion: audit.k8s.io/v1
-kind: Policy
-rules:
-  # Log RBAC failures at detailed level
-  - level: RequestResponse
-    namespaces: [""]
-    verbs: ["create", "update", "patch", "delete"]
-    resources:
-    - group: "rbac.authorization.k8s.io"
-      resources: ["*"]
-
-  # Log all denied requests
-  - level: Request
-    namespaces: [""]
-    verbs: ["*"]
-    resources: ["*"]
-    omitStages:
-    - RequestReceived
-```
-* API Server Flags `/etc/kubernetes/manifests/kube-apiserver.yaml`
-```yaml
---audit-log-path=/var/log/kubernetes/audit.log
---audit-policy-file=/etc/kubernetes/audit-policy.yaml
---audit-log-maxage=30
---audit-log-maxbackup=10
---audit-log-maxsize=100
-```
-* Troubleshooting Workflow
-```bash
-Permission Denied
-        |
-        v
-Check Authentication (whoami)
-        |
-   +----+-----+
-   |          |
-Failed     Success
-   |          |
-Fix Auth   Check Role Exists
-              |
-        +-----+------+
-        |            |
-       No          Yes
-        |            |
-Create Role   Check RoleBinding
-                    |
-              +-----+------+
-              |            |
-             No          Yes
-              |            |
-      Create RoleBinding   Check Subject Match
-                                |
-                         +------+------+
-                         |             |
-                        No           Yes
-                         |             |
-                Fix Subject Name   Check API Group/Resources
-```
-
----
-* Kubernetes RBAC Maintenance Checklist
-* Weekly RBAC Maintenance
-
-  | Task                                          | Description                                                                                      |
-  | --------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-  | **[ ] Review audit logs for RBAC failures**   | Look for `Forbidden` errors in API server logs to identify missing or misconfigured permissions. |
-  | **[ ] Check for unused Roles & RoleBindings** | Identify RBAC objects that haven’t been used recently and mark for removal.                      |
-  | **[ ] Validate Service Account usage**        | Ensure pods are using the *intended* service accounts, not `default`.                            |
-
-* Monthly RBAC Maintenance
-
-  | Task                                 | Description                                                                             |
-  | ------------------------------------ | --------------------------------------------------------------------------------------- |
-  | **[ ] Audit cluster-admin bindings** | Ensure *only platform admins* have `cluster-admin`; remove accidental bindings.         |
-  | **[ ] Review wildcard permissions**  | Find any RBAC rules using `*` in verbs/resources and replace with explicit permissions. |
-  | **[ ] Update RBAC documentation**    | Maintain annotations, purpose tags, and diagrams explaining each Role/ClusterRole.      |
-  | **[ ] Test permission boundaries**   | Verify that users/apps have only the permissions they need (least privilege).           |
-
-* Quarterly RBAC Maintenance
-
-  | Task                                               | Description                                                                                     |
-  | -------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-  | **[ ] Complete RBAC architecture review**          | Validate namespace boundaries, cluster roles, multi-namespace access, and operator permissions. |
-  | **[ ] Update roles based on job function changes** | Remove access for ex-employees, team transfers, or deprecated services.                         |
-  | **[ ] Perform security penetration testing**       | Attempt privilege escalation via RBAC to ensure boundaries are enforced.                        |
-  | **[ ] Compliance verification**                    | Ensure policies meet SOC2, ISO, NIST, PCI, or internal governance rules.                        |
 
 ---
 ---

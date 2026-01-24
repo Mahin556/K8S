@@ -5,6 +5,14 @@
 
 ---
 
+### Scenarion when we use multi-container pods
+- When one container need to store some data on database.
+- When container one generate a data and container two process the data.
+- When container on generate a log and container two send logs to the centralized location.
+- When need to run monitoring and logging agent with the main application container.
+- When some container need some file/data or any kind of initialization thing then we can use a init container that run before the main application container.
+
+
 ### **Why Multi-Container Pods?**
 ![Alt text](/images/21c.png)
 
