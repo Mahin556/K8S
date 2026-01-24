@@ -6,7 +6,7 @@ spec:
   ttlSecondsAfterFinished: 60
   completions: 2
   parallelism: 2
-  backoffLimit: 4
+  backoffLimit: 4 #default 6
   template:
     spec:
       containers:
@@ -14,7 +14,4 @@ spec:
           image: busybox
           command: ["bin/sh", "-c", "echo Hello from the Job! && sleep 10"]
       restartPolicy: Never
-
----
-
       

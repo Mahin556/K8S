@@ -19,8 +19,8 @@ kubectl describe pod java-api-pod
 <br>
 
 #### **Pending**
-  - **Scheduling:** Assigning the Pod to a node based on available resources, constraints, and scheduling policies.
-  - **Image Pulling:** Fetching container images from the registry if they are not already present on the node.
+  - **Scheduling:** Assigning the Pod to a node based on available resources, constraints, and scheduling policies(no node available).
+  - **Image Pulling:** Fetching(downloading) container images from the registry if they are not already present on the node.
   - Init container hasn’t completed.
   - **Issues:**  
     - Insufficient cluster resources (e.g., CPU, memory, storage).
@@ -79,7 +79,7 @@ kubectl describe pod java-api-pod
 <br>
 
 #### **Succeeded**
-  * The Pod has completed its lifecycle, and all containers within the Pod have terminated successfully (exit code `0`).
+  * The Pod has completed its lifecycle/task, and all containers within the Pod have terminated successfully (exit code `0`).
   * No restarts will occur, as this state is terminal.
   * Batch jobs, short-lived Pods, cronjobs where containers run once and exit cleanly.
   * When the container finishes execution with exit 0, Kubernetes marks the Pod phase as Succeeded.
@@ -159,7 +159,7 @@ kubectl describe pod java-api-pod
 <br>
 
 #### **Failed**
-  * The Pod lifecycle has ended, but at least one or more containers have failed (exited with **non-zero** exit codes).
+  * The Pod lifecycle has ended/completed, but at least one or more containers have failed (exited with **non-zero** exit codes).
   * Init container crashes.
   * Node failure or eviction.
   * ActiveDeadlineSeconds exceeded (Jobs).
@@ -352,6 +352,12 @@ kubectl describe pod java-api-pod
 #### **Unknown**
   * The Pod status cannot be obtained by the API server, usually due to communication issues with the node.
   * This phase is rare and typically indicates infrastructure issues.
+
+#### **Terminated**
+  * Intentionally terminate
+
+#### **Evicted**
+  * 
 
 <br>
 
