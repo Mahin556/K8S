@@ -80,7 +80,7 @@ showmount -e <nfs_server_ip>
 
 #client(all worker)
 apt update #ubuntu
-apt install nfs-common -y && showmount -e <nfs_server_ip>
+apt install nfs-common -y && showmount -e <nfs_server_ip> #need to installed on all worker and control plane nodes
 apt install nfs-common -y && showmount -e 
 ```
 ```bash
