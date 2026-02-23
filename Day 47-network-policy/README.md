@@ -42,6 +42,8 @@ If this **repository** helps you, give it a ⭐ to show your support and help ot
 
 In modern Kubernetes environments, securing pod-to-pod communication is as essential as securing access to the API server. By default, all pods can talk to each other freely, making the cluster vulnerable to lateral movement and internal threats. In this session, we explore **Kubernetes NetworkPolicies**, a native mechanism to enforce **Layer 3/4 network segmentation** within the cluster. Using a realistic 3-tier application setup — comprising frontend, backend, and database tiers — we demonstrate how to apply the **principle of least privilege** by crafting precise ingress and egress rules. We also examine how NetworkPolicies are enforced by CNI plugins, clarify the subtle behavior of selector logic, and simulate traffic flows before and after policies are applied. This session equips you with practical skills and architectural patterns to secure Kubernetes workloads effectively.
 
+* It is a built-in kubernetes feature, but the implementation part of it lies in a CNI.
+
 ---
 
 ## **Understanding the Context: Our 3-Tier Application**
@@ -121,6 +123,14 @@ kubectl get ds -n kube-system
 ```
 
 For example, seeing `calico-node` or `cilium-agent` in the output confirms you're using a policy-capable CNI.
+
+---
+
+### Limitations
+* Standard Network Policies works on L3(IP)/L4(ports) based routing.
+* Does not support a HTTP traffic filtering(Layer 7 based filtering).
+* To use L7 based filtering we need to use advaced type of network policies.
+* Advanced network policies --> Service Mesh(Istio), CNI(cilium).
 
 ---
 
@@ -237,6 +247,7 @@ Kubernetes NetworkPolicies restrict traffic based on three types of selectors: *
 
 * Matches traffic from/to **external IP ranges**, outside the Kubernetes cluster.
 * Typical use case: An **external backup node** or logging service needs access to your pods.
+* Kubernetes only understand the label on the native resources, or custome resource. it do not understand the label on resources outside of cluster, thats why the `ipBlock` is important.
 * Example:
 
   ```yaml
@@ -417,12 +428,14 @@ We'll create a namespace called `app1-ns`, labeled with `app=app1`. Labeling hel
 **00-namespace.yaml**
 
 ```yaml
+kubectl apply -f -<<EOF
 apiVersion: v1
 kind: Namespace
 metadata:
   name: app1-ns
   labels:
     app: app1
+EOF
 ```
 
 After creating the namespace, switch your current context to point to `app1-ns`. This avoids the need to append `-n app1-ns` to every `kubectl` command.
@@ -761,11 +774,12 @@ We'll now define and apply `NetworkPolicy` manifests for the **db**, **backend**
 ---
 
 ```yaml
+kubectl apply -f -<<EOF
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: db-policy                 # Logical name for the policy
-  namespace: app1-ns              # Namespace where the policy is enforced
+  namespace: app1-ns              # Namespace where the policy is enforced and allpy to pod in this namespace
 spec:
   policyTypes:
     - Ingress                    # Control incoming traffic
@@ -783,6 +797,7 @@ spec:
       ports:
         - protocol: TCP
           port: 3306            # Allow MySQL traffic on port 3306
+EOF
 ```
 
 > **Note**: In Kubernetes, if `policyTypes` includes `Egress` but no `egress` rules are defined, **all egress traffic is denied** for the targeted pods.
@@ -805,6 +820,7 @@ kubectl describe netpol db-policy -n app1-ns
 ### 05-revised-backend-netpol.yaml – Allow Ingress from Frontend and Egress to DB & DNS
 
 ```yaml
+kubectl apply -f -<<EOF
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -852,6 +868,7 @@ spec:
           port: 53
         - protocol: TCP
           port: 53
+EOF
 ```
 
 ---
@@ -971,6 +988,7 @@ This is **too permissive**. For example:
 ### 06-frontend-netpol.yaml – Allow Ingress from External Clients & Egress to Backend and DNS
 
 ```yaml
+kubectl apply -f -<<EOF
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -1012,6 +1030,7 @@ spec:
           port: 53
         - protocol: TCP
           port: 53
+EOF
 ```
 
 ---
