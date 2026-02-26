@@ -2,25 +2,25 @@ apiVersion: eksctl.io/v1alpha5
 kind: ClusterConfig
 
 metadata:
-  name: cwvj-ingress-demo
-  region: us-east-2
+  name: mahin-ingress-demo
+  region: ap-south-1
   tags:
-    owner: varun-joshi
-    bu: cwvj
+    owner: mahin-raza
+    bu: cwmr
     project: ingress-demo
 
 availabilityZones:
-  - us-east-2a
-  - us-east-2b
+  - ap-south-1a
+  - ap-south-2b
 
 iam:
   withOIDC: true
 
 managedNodeGroups:
-  - name: cwvj-eks-priv-ng
+  - name: cwmr-eks-priv-ng
     instanceType: t3.small
     minSize: 2
-    maxSize: 2
+    maxSize: 3
     privateNetworking: true
     volumeSize: 20
     iam:

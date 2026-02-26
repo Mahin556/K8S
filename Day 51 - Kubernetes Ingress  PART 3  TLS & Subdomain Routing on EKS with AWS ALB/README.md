@@ -269,7 +269,7 @@ Once the ALB is provisioned and you have the **DNS name** from `kubectl get ingr
 
 1. Navigate to **Route 53 → Hosted Zones → cwvj.click**.
 2. Click **Create Record**.
-3. Since we are setting this up for the **apex domain** (`cwvj.click`), leave the **Record name** blank.
+3. Since we are setting this up for the **apex domain/root domain** (`cwvj.click`), leave the **Record name** blank.
 4. Select **Alias**.
 5. Under “Route traffic to”, choose:
 
@@ -445,6 +445,7 @@ To enable HTTPS for multiple subdomains, we need valid TLS certificates:
 
 3. Wait for ACM to validate ownership and issue the certificates. These will be used by the ALB to serve HTTPS traffic for all routes.
 
+Note: We can also create the single certificate for `apex domain` and `subdomaines`
 ---
 
 ## **Step 2: Update Deployments and Services**

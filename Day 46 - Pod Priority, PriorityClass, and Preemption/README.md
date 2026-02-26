@@ -3,24 +3,25 @@
 
 ---
 
-In Kubernetes, not all workloads are created equal. Some applications are mission-critical, while others can be deprioritized during resource pressure. This lecture introduces the concept of **Pod Priority and Preemption**, a powerful mechanism in Kubernetes that enables intelligent scheduling and eviction based on workload importance.
+In Kubernetes, not all workloads are equally important. Some applications are mission-critical, such as payment processors or core APIs, while others like development dashboards or batch jobs can tolerate delays or temporary disruption.
+This is where Pod Priority and Preemption come into play.
+Pod Priority allows you to assign an importance level to different workloads. The Kubernetes scheduler uses this priority when deciding which Pods to schedule first. Higher-priority Pods are placed before lower-priority ones when resources are available.
+But what happens if the cluster is already full and a critical workload needs to run?
+That’s where Preemption works.
+If there are not enough resources, Kubernetes can evict lower-priority Pods to free up space for higher-priority Pods. This ensures that important applications continue to run, even during resource pressure.
 
-By the end of this lecture, you’ll understand how to define priority classes, how the Kubernetes scheduler respects these during both normal and constrained conditions, and how to test and observe preemption scenarios using simple yet realistic demos on a KIND cluster.
+Why this feature exists:
+  * To protect business-critical workloads
+  * To maintain service reliability under load
+  * To ensure fair and intelligent resource allocation
+  * To prevent low-value workloads from blocking critical services
 
-Whether you’re deploying payment systems, batch jobs, or development dashboards, this knowledge will help you control workload fairness and resilience under pressure.
+With Pod Priority and Preemption, you can:
+  * Define PriorityClasses for different workload levels
+  * Control scheduling behavior during normal conditions
+  * Handle resource shortages in a predictable way
+  * Test and observe preemption scenarios in environments like a KIND cluster
 
----
-
-
-## **Why Pod Priority and Preemption Exist**
-
-In Kubernetes, not all workloads are equal — some are business-critical (e.g., payment processors), while others are non-critical (e.g., dev dashboards, batch jobs).
-
-During a resource crunch, Kubernetes should **favor critical workloads** over less important ones. That’s where **Pod Priority** comes in — it guides the **scheduler** on **which pods to prefer** when scheduling decisions are made.
-
-But what happens when the cluster is already full and a critical workload needs to be scheduled?
-
-That’s when **Preemption** kicks in — Kubernetes **evicts lower-priority pods** to make room for **higher-priority ones**. This makes sure that your critical apps get the resources they need, even at the cost of non-essential workloads.
 
 ---
 
@@ -47,9 +48,9 @@ spec:
   priorityClassName: high-priority
 ```
 
-Higher numeric value = higher priority. A pod with priority `1000` will be scheduled before one with `100`. The valid value range for custom workloads is from `-2,147,483,648` to `1,000,000,000`.
+Higher numeric value = higher priority. A pod with priority `1000` will be scheduled before one with `100`. The valid value range for custom workloads is from `-2,147,483,648` - `0` - `1,000,000,000`.
 
-Pods that do not define a priority class default to priority `0`, unless you have a class marked as `globalDefault: true`.
+Pods that do not define a priority class default to priority `0`(normal priority), unless you have a class marked as `globalDefault: true`.
 
 ---
 

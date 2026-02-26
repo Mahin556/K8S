@@ -234,7 +234,7 @@ This modular structure allows large domains to be delegated, distributed, and ma
 
 ![Alt text](/images/1b.png)
 
-* DNS resolution starts at the **root zone**, the entry point of the DNS hierarchy, managed by **IANA**. The root zone file contains **NS records for all Top-Level Domains (TLDs)** such as `.com`, `.org`, and `.io`, telling resolvers where to go next. Example:
+* DNS resolution starts at the **root zone**, the entry point of the DNS hierarchy, managed by **IANA(Internet assigned number authority**. The root zone file contains **NS records for all Top-Level Domains (TLDs)** such as `.com`, `.org`, and `.io`, telling resolvers where to go next. Example:
 
   ```dns
   io.   NS   a0.nic.io.
@@ -326,7 +326,7 @@ mail    IN  A       198.51.100.25           ; A record for the mail server
 | `$TTL`  | Default cache duration for all records unless individually overridden.                               |
 | `@`     | Refers to the apex of the zone (`kubernetes.io` in this case).                                       |
 | `SOA`   | Start of Authority — defines the zone's primary server and metadata for replication and DNS hygiene. |
-| `NS`    | Authoritative nameservers for the domain — stored at the TLD level, repeated here for redundancy.    |
+| `NS`    | Authoritative nameservers for the domain — stored at the TLD level, repeated here for redundancy, we can host our nameserver using this record.    |
 | `A`     | Maps a name to an IPv4 address.                                                                      |
 | `CNAME` | Creates an alias (canonical name); cannot coexist with other record types.                           |
 | `MX`    | Specifies mail exchange servers along with priority.                                                 |

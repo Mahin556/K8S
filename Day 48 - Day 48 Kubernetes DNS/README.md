@@ -190,6 +190,13 @@ Kubernetes uses fully qualified domain names (FQDNs) to resolve services and, op
 > Note: A trailing dot (`.`) in DNS (`...local.`) marks the name as an absolute FQDN. It is typically omitted in command-line usage but present in DNS queries.
 
 ---
+### **Kubernetes DNS Breakdown(if we follow the public DNS name syntex): A Visual Guide**
+
+![alt text](image.png)
+
+* Kubernetes doesn't works that way.
+
+---
 
 ### **Kubernetes DNS Breakdown: A Visual Guide**
 
@@ -203,6 +210,61 @@ This table breaks down two common forms of internal Kubernetes DNS names — one
 | **Namespace Subdomain** | `<namespace>` | `default` | `default` | The **Kubernetes namespace** of the resource, used for resource isolation and logical grouping. |
 | **Hostname** | `<resource>` | `nginx-svc` | `10-244-44-55` | For Services, this is the Service name. For Pods, it's the **Pod IP rewritten with hyphens** (e.g., `10.244.44.55` becomes `10-244-44-55`). |
 
+```bash
+#The word "stable" must be used carefully for Pod DNS names.
+
+#Regular Pods:
+
+# Pod DNS name is based on Pod IP.
+# Pods are temporary (ephemeral).
+# When a Pod restarts:
+#    - It may get a new IP.
+#    - Its DNS name changes.
+# So DNS is only stable while the Pod is running.
+
+#Conclusion:
+#Regular Pod DNS is NOT truly stable.
+
+#StatefulSet + Headless Service:
+#True DNS stability happens when:
+#1) Pods are created using a StatefulSet
+#2) They are exposed using a Headless Service
+#In this case:
+#Each Pod gets:
+# A fixed name
+# A predictable DNS entry
+# Stable identity across restarts
+
+#Example:
+pod-0.headless-svc.default.svc.cluster.local
+
+#Even if:
+# Pod restarts
+# IP changes
+
+#The DNS name remains the same.
+
+# Why this matters:
+# Stateful applications need:
+# Stable identity
+# Stable network name
+# Ordered startup
+
+# Examples:
+# - Databases
+# - Kafka
+# - Zookeeper
+# - Redis clusters
+
+# Quick summary:
+
+# Regular Pod:
+# DNS stable? → No (only while alive)
+
+# StatefulSet + Headless Service:
+# DNS stable? → Yes (persists across restarts)
+
+```
 
 ---
 
@@ -711,6 +773,287 @@ Useful when strict DNS behavior and naming consistency are desired.
 * Use **`pods hostname`** when you manage pod hostnames explicitly (e.g., with StatefulSets).
 * Avoid **`pods insecure`** due to its lack of validation and vulnerability to spoofing.
 
+```text
+────────────────────────────────────────────────────────
+BOX — CoreDNS Pod Resolution Modes (Simple Explanation)
+────────────────────────────────────────────────────────
+
+CoreDNS controls how Pod-level DNS names are resolved
+using the "pods" directive inside the kubernetes plugin.
+
+You configure it here:
+
+kubectl -n kube-system edit configmap coredns
+
+Example section:
+
+kubernetes cluster.local in-addr.arpa ip6.arpa {
+    pods <mode>
+}
+
+There are 3 modes.
+
+────────────────────────────────────────
+1) pods insecure
+────────────────────────────────────────
+
+Config:
+
+kubernetes cluster.local in-addr.arpa ip6.arpa {
+    pods insecure
+}
+
+What it does:
+- Creates DNS entries from Pod IP automatically
+- Does NOT verify with Kubernetes API
+- Just converts IP → DNS format
+
+Example:
+Pod IP = 10.244.1.23
+Namespace = default
+
+DNS becomes:
+10-244-1-23.default.pod.cluster.local
+
+Test:
+nslookup 10-244-1-23.default.pod.cluster.local
+
+Problem:
+- If Pod is deleted → may still resolve
+- If IP reused → may resolve wrong Pod
+- Can be spoofed
+
+Use:
+- Development
+- Legacy kube-dns compatibility
+
+Not recommended for production.
+
+────────────────────────────────────────
+2) pods verified
+────────────────────────────────────────
+
+Config:
+
+kubernetes cluster.local in-addr.arpa ip6.arpa {
+    pods verified
+}
+
+What it does:
+- Checks Pod IP against Kubernetes API cache
+- Only resolves if:
+  • Pod exists
+  • Pod is running
+  • IP matches namespace
+
+Example:
+Pod IP = 10.244.1.23
+Namespace = default
+
+DNS:
+10-244-1-23.default.pod.cluster.local
+
+If Pod exists → resolves
+If Pod deleted → NXDOMAIN
+
+Benefits:
+- No stale records
+- No spoofing
+- API-backed validation
+- Secure
+
+Recommended for production clusters.
+
+────────────────────────────────────────
+3) pods hostname
+────────────────────────────────────────
+
+Config:
+
+kubernetes cluster.local in-addr.arpa ip6.arpa {
+    pods hostname
+}
+
+What it does:
+- Uses Pod’s hostname field
+- Not based on IP format
+- Requires explicit hostname + subdomain
+
+Example Pod:
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: mypod
+spec:
+  hostname: app1
+  subdomain: backend
+  containers:
+  - name: nginx
+    image: nginx
+
+Headless Service required:
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+spec:
+  clusterIP: None
+
+DNS becomes:
+app1.backend.default.svc.cluster.local
+
+Best for:
+- StatefulSets
+- Databases
+- Predictable naming
+
+────────────────────────────────────────
+Comparison
+────────────────────────────────────────
+
+pods insecure
+- No API check
+- Fast
+- Unsafe
+
+pods verified
+- API verified
+- Secure
+- Best for production
+
+pods hostname
+- Based on hostname field
+- Stable naming
+- Ideal for stateful apps
+
+────────────────────────────────────────
+Production Recommendation
+────────────────────────────────────────
+
+Use:
+
+kubernetes cluster.local in-addr.arpa ip6.arpa {
+    pods verified
+}
+
+For stateful workloads:
+- Use pods hostname
+- Use StatefulSet
+- Use Headless Service
+
+────────────────────────────────────────
+```
+```text
+────────────────────────────────────────
+BOX — How CoreDNS Forwards DNS to Upstream
+────────────────────────────────────────
+
+CoreDNS answers DNS queries inside Kubernetes.
+
+If it does NOT have the answer locally,
+it forwards the query to an upstream DNS server.
+
+------------------------------------------------
+
+Typical CoreDNS Config (Corefile):
+
+.:53 {
+    kubernetes cluster.local in-addr.arpa ip6.arpa {
+        pods verified
+        fallthrough in-addr.arpa ip6.arpa
+    }
+    forward . /etc/resolv.conf
+    cache 30
+}
+
+------------------------------------------------
+
+Step-by-Step Flow
+
+1) A Pod makes a DNS request
+   Example:
+   curl google.com
+
+2) The request goes to CoreDNS
+   (Usually service IP like 10.96.0.10)
+
+3) CoreDNS checks internal records
+   Using the "kubernetes" plugin:
+   - Is it cluster.local?
+   - Is it a service?
+   - Is it a pod?
+   - Is it reverse lookup?
+
+   If YES → return answer
+   If NO → continue
+
+4) Since google.com is external,
+   kubernetes plugin does NOT answer.
+
+5) The "forward" plugin handles it:
+
+   forward . /etc/resolv.conf
+
+   Meaning:
+   - For any domain (.)
+   - Send query to DNS servers
+     listed in /etc/resolv.conf
+
+6) CoreDNS forwards query
+   Example upstream DNS:
+   8.8.8.8
+   1.1.1.1
+
+7) Upstream resolver:
+   - Performs recursive lookup
+   - Finds IP for google.com
+   - Sends response back
+
+8) CoreDNS:
+   - Returns answer to Pod
+   - Optionally caches it
+
+------------------------------------------------
+
+Full Flow
+
+Pod
+  → CoreDNS
+    → Check internal records
+      → No match
+        → Forward to upstream DNS
+          → Upstream resolves
+            → CoreDNS returns result
+              → Pod receives IP
+
+------------------------------------------------
+
+Important Plugins
+
+kubernetes  → Handles cluster DNS
+forward     → Sends unknown queries upstream
+cache       → Stores results
+fallthrough → Allows next plugin to process
+
+------------------------------------------------
+
+If upstream fails:
+- CoreDNS tries next server
+- If all fail → returns SERVFAIL
+
+------------------------------------------------
+
+Simple Summary
+
+If CoreDNS cannot resolve a name internally,
+it forwards the query to an upstream DNS server,
+gets the answer,
+and returns it to the Pod.
+
+────────────────────────────────────────
+```
 
 
 ---
@@ -845,5 +1188,5 @@ In this lecture, we covered the architecture of CoreDNS, its role in DNS resolut
 * [Debugging DNS Resolution – Kubernetes Documentation](https://kubernetes.io/docs/tasks/administer-cluster/dns-debugging-resolution/)
 * [Custom DNS Configuration – Kubernetes Documentation](https://kubernetes.io/docs/tasks/administer-cluster/dns-custom-nameservers/)
 * [CoreDNS Plugin: Kubernetes](https://coredns.io/plugins/kubernetes/)
-
+* https://kubernetes.io/docs/concepts/services-networking/dns-pod-service/#pods
 ---

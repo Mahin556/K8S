@@ -1,0 +1,50 @@
+```bash
+kubectl label node workerone storage=ssd
+kubectl label node workertwo storage=hdd
+```
+```bash
+kubectl apply -f -<<EOF
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: na-pref-deploy
+spec:
+  replicas: 10
+  selector:
+    matchLabels:
+      app: app1
+  template:
+    metadata:
+      labels:
+        app: app1
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: storage
+                operator: In
+                values:
+                - ssd
+                - hdd
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 10
+              preference:
+                matchExpressions:
+                  - key: storage
+                    operator: In
+                    values:
+                      - ssd
+            - weight: 5
+              preference:
+                matchExpressions:
+                  - key: storage
+                    operator: In
+                    values:
+                      - hdd
+      containers:
+        - name: nginx
+          image: nginx
+EOF
+```
