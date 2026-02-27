@@ -1,12 +1,20 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
+<<<<<<< HEAD
   name: ingress-demo1
+=======
+  name: ingress-demo
+>>>>>>> 8b31efea7da9bad8728e188cecbbc41bc17a1137
   namespace: app1-ns
   annotations:
     # AWS ALB Ingress Controller Settings
     alb.ingress.kubernetes.io/scheme: internet-facing
+<<<<<<< HEAD
     alb.ingress.kubernetes.io/load-balancer-name: cwvj-ingress-demo1
+=======
+    alb.ingress.kubernetes.io/load-balancer-name: mahin-ingress-demo
+>>>>>>> 8b31efea7da9bad8728e188cecbbc41bc17a1137
 
     # Target Type and Listener Port
     alb.ingress.kubernetes.io/target-type: ip

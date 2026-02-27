@@ -139,6 +139,10 @@ managedNodeGroups:
 Create the cluster using:
 
 ```bash
+<<<<<<< HEAD
+=======
+aws sts get-caller-identity
+>>>>>>> 8b31efea7da9bad8728e188cecbbc41bc17a1137
 eksctl create cluster -f eks-config.yaml
 ```
 
@@ -243,7 +247,12 @@ Create the policy in your AWS account:
 ```bash
 aws iam create-policy \
   --policy-name AWSLoadBalancerControllerIAMPolicy \
+<<<<<<< HEAD
   --policy-document file://iam_policy.json
+=======
+  --policy-document file://iam_policy.json \
+  --profile default
+>>>>>>> 8b31efea7da9bad8728e188cecbbc41bc17a1137
 ```
 
 > The created policy will be used to grant your controller the ability to call ELB, EC2, and IAM APIs. You can inspect the JSON file for exact permissions.
@@ -673,6 +682,10 @@ kubectl get services
 To verify pod distribution across AZs:
 
 ```bash
+<<<<<<< HEAD
+=======
+kubectl get pod -owide
+>>>>>>> 8b31efea7da9bad8728e188cecbbc41bc17a1137
 kubectl get pods -o wide --sort-by='.spec.nodeName'
 ```
 
@@ -784,7 +797,11 @@ spec:
     - http:                                # All rules here apply to HTTP traffic
         paths:                             # Each entry defines a routing path
           - path: /iphone
+<<<<<<< HEAD
             pathType: Prefix               # Match all paths that start with '/iphone'
+=======
+            pathType: Prefix               # Match all paths that start with '/iphone' #Other option is Exact
+>>>>>>> 8b31efea7da9bad8728e188cecbbc41bc17a1137
             backend:
               service:
                 name: iphone-svc           # Traffic matching '/iphone' goes to this Kubernetes Service
@@ -828,7 +845,11 @@ In **Demo 1**, you're performing **path-based routing** using an ALB with `/ipho
 
 ### `target-type: ip` — Direct-to-Pod Routing via VPC CNI
 ![Alt text](/images/49d.png)
+<<<<<<< HEAD
 When you set `target-type: ip`, the ALB registers **Pod IPs** directly in its Target Groups. This is possible because the **AWS VPC CNI plugin** assigns each Pod a routable secondary IP from the VPC subnet range. The Kubernetes `Service` is still needed, but only for discovering the backend Pods — it does not participate in traffic forwarding.
+=======
+When you set `target-type: ip`, the ALB registers **Pod IPs** directly in its Target Groups. This is possible because the **AWS VPC CNI plugin** assigns each Pod a routable secondary IP from the VPC subnet range. The Kubernetes `Service` is still needed, but only for discovering the backend Pods or create the target group — it does not participate in traffic forwarding.
+>>>>>>> 8b31efea7da9bad8728e188cecbbc41bc17a1137
 
 > Reduces network hops and supports Pod-level health checks.
 
@@ -1283,6 +1304,50 @@ With this demo, you now have a working model of a **multi-path Ingress setup**, 
 
 In **Part 3**, we’ll extend this to include **TLS termination** using **AWS Certificate Manager (ACM)** and **subdomain-based routing** via **Route 53**, completing the full picture for a secure, multi-service public application on EKS.
 
+<<<<<<< HEAD
+=======
+
+```bash
+eksctl create cluster -f eks-config.yaml --profile tf-user2
+
+cd demo1
+
+aws iam create-policy \
+  --policy-name AWSLoadBalancerControllerIAMPolicy \
+  --policy-document file://iam_policy.json \
+  --profile tf-user2
+
+eksctl create iamserviceaccount \
+  --cluster=mahin-ingress-demo \
+  --namespace=kube-system \
+  --name=aws-load-balancer-controller \
+  --attach-policy-arn=arn:aws:iam::411930903195:policy/AWSLoadBalancerControllerIAMPolicy \
+  --override-existing-serviceaccounts \
+  --region ap-south-1 \
+  --approve \
+  --profile tf-user2
+
+
+helm install aws-load-balancer-controller eks/aws-load-balancer-controller \
+  -n kube-system \
+  --set clusterName=mahin-ingress-demo \
+  --set serviceAccount.create=false \
+  --set serviceAccount.name=aws-load-balancer-controller \
+  --version 1.17.1
+
+kubectl apply -f 01-ns.yaml
+
+kubectl config set-context --current --namespace=app1-ns
+
+kubectl apply -f 02-iphone.yaml
+
+kubectl apply -f 03-android.yaml
+
+kubectl apply -f 04-desktop.yaml
+
+kubectl apply -f 05-ingress.yaml
+```
+>>>>>>> 8b31efea7da9bad8728e188cecbbc41bc17a1137
 ---
 
 ## References

@@ -84,6 +84,41 @@ apt install nfs-common -y && showmount -e <nfs_server_ip> #need to installed on 
 apt install nfs-common -y && showmount -e 
 ```
 ```bash
+<<<<<<< HEAD
+=======
+████████████  NFS SERVER SETUP (RHEL / CENTOS / ROCKY / ALMA)  ████████████
+
+1️⃣ Install NFS packages
+dnf install nfs-utils -y
+
+2️⃣ Create shared folder
+mkdir -p /k8s-data
+chmod 777 /k8s-data
+chown -R nobody:nobody /k8s-data
+
+3️⃣ Configure export
+echo "/k8s-data *(rw,sync,no_subtree_check,no_root_squash)" >> /etc/exports
+
+4️⃣ Apply export
+exportfs -rav
+
+5️⃣ Start NFS services
+systemctl enable --now rpcbind
+systemctl enable --now nfs-server
+systemctl enable --now nfs-mountd
+systemctl enable --now nfs-idmapd
+
+6️⃣ Open firewall
+firewall-cmd --permanent --add-service=nfs
+firewall-cmd --permanent --add-service=mountd
+firewall-cmd --permanent --add-service=rpc-bind
+firewall-cmd --reload
+
+7️⃣ Verify
+showmount -e localhost
+```
+```bash
+>>>>>>> 8b31efea7da9bad8728e188cecbbc41bc17a1137
 kubectl get pv
 kubectl get pvc
 kubectl get pods
