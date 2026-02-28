@@ -1,0 +1,71 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - deployment.yaml
+  - service.yaml
+  - configmap.yaml
+  - secret.yaml
+
+labels:
+  - pairs:
+      app: my-java-app
+    includeSelectors: true
+
+namespace: my-java-app-namespace
+
+generatorOptions:
+  disableNameSuffixHash: false   # change to true if you don't want hash
+
+configMapGenerator:
+
+  # From file
+  - name: file-config
+    files:
+      - config/application.properties
+
+  # From file with custom key
+  - name: custom-key-config
+    files:
+      - app.properties=config/application.properties
+
+  # From literals
+  - name: literal-config
+    literals:
+      - APP_ENV=dev
+      - LOG_LEVEL=debug
+
+  # From .env file
+  - name: env-config
+    envs:
+      - config/app.env
+
+
+secretGenerator:
+
+  # From literals
+  - name: literal-secret
+    literals:
+      - username=admin
+      - password=secretpassword
+
+  # From file
+  - name: file-secret
+    files:
+      - db-password.txt
+
+  # Custom key for file
+  - name: custom-key-secret
+    files:
+      - db_pass=db-password.txt
+
+  # From .env file
+  - name: env-secret
+    envs:
+      - secret.env
+
+
+images:
+  - name: my-java-app-image
+    newName: my-registry/my-java-app
+    newTag: v1.0.0
