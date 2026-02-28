@@ -6,18 +6,18 @@ Storage provisioning is the process of creating storage volumes for your applica
 ### Static vs Dynamic Provisioning
 
 #### Static Provisioning
-- **Manual Process**: Admin creates storage volumes manually
-- **Pre-created**: Volumes exist before pods need them
-- **Limited Flexibility**: Fixed size and configuration
-- **Example**: Admin creates 10 PVs of 5GB each, hoping applications will use them
+- **Manual Process**: Admin creates storage volumes manually.
+- **Pre-created**: Volumes exist before pods need them.
+- **Limited Flexibility**: Fixed size and configuration.
+- **Example**: Admin creates 10 PVs of 5GB each, hoping applications will use them.
 - **PVC**: Can take slice of the PV storage not the entire storage.
 
 
 #### Dynamic Provisioning
-- **Automatic Process**: Storage created when requested
-- **On-Demand**: Volumes created when PVC is submitted
-- **Flexible**: Size and configuration based on requirements
-- **Efficient**: No pre-allocation or waste
+- **Automatic Process**: Storage created when requested.
+- **On-Demand**: Volumes created when PVC is submitted.
+- **Flexible**: Size and configuration based on requirements.
+- **Efficient**: No pre-allocation or waste.
 
 
 ### What is a Storage Class?
