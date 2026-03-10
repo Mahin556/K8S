@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-java-app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: my-java-app
+  template:
+    metadata:
+      labels:
+        app: my-java-app
+    spec:
+      containers:
+        - name: my-java-app
+          image: my-java-app-image
+          ports:
+            - containerPort: 8080
+
+          # Secret as environment variables
+          env:
+            - name: DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: literal-secret
+                  key: username
+
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: literal-secret
+                  key: password
+
+          # ConfigMap as volume
+          volumeMounts:
+            - name: config-volume
+              mountPath: /app/config
+
+      volumes:
+        - name: config-volume
+          configMap:
+            name: file-config

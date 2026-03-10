@@ -567,8 +567,12 @@ To reduce the risk of credentials leakage, follow these best practices:
 
 4. **Use IRSA for ECR (or workload identity for GCP/Azure):**
    Instead of static credentials, use cloud-native mechanisms (like IAM Roles for Service Accounts in EKS) to fetch registry tokens dynamically — eliminating the need for manually created secrets.
+<<<<<<< HEAD
+
+=======
    Or Attach a role to worker node in case all pods need access.
    
+>>>>>>> 8b31efea7da9bad8728e188cecbbc41bc17a1137
 5. **Regular Rotation:**
    Periodically rotate registry credentials and update secrets accordingly to minimize the blast radius in case of a leak.
 

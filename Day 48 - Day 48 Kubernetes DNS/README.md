@@ -190,6 +190,8 @@ Kubernetes uses fully qualified domain names (FQDNs) to resolve services and, op
 > Note: A trailing dot (`.`) in DNS (`...local.`) marks the name as an absolute FQDN. It is typically omitted in command-line usage but present in DNS queries.
 
 ---
+<<<<<<< HEAD
+=======
 ### **Kubernetes DNS Breakdown(if we follow the public DNS name syntex): A Visual Guide**
 
 ![alt text](image.png)
@@ -197,6 +199,7 @@ Kubernetes uses fully qualified domain names (FQDNs) to resolve services and, op
 * Kubernetes doesn't works that way.
 
 ---
+>>>>>>> 8b31efea7da9bad8728e188cecbbc41bc17a1137
 
 ### **Kubernetes DNS Breakdown: A Visual Guide**
 
@@ -210,6 +213,8 @@ This table breaks down two common forms of internal Kubernetes DNS names — one
 | **Namespace Subdomain** | `<namespace>` | `default` | `default` | The **Kubernetes namespace** of the resource, used for resource isolation and logical grouping. |
 | **Hostname** | `<resource>` | `nginx-svc` | `10-244-44-55` | For Services, this is the Service name. For Pods, it's the **Pod IP rewritten with hyphens** (e.g., `10.244.44.55` becomes `10-244-44-55`). |
 
+<<<<<<< HEAD
+=======
 ```bash
 #The word "stable" must be used carefully for Pod DNS names.
 
@@ -265,6 +270,7 @@ pod-0.headless-svc.default.svc.cluster.local
 # DNS stable? → Yes (persists across restarts)
 
 ```
+>>>>>>> 8b31efea7da9bad8728e188cecbbc41bc17a1137
 
 ---
 
@@ -773,6 +779,8 @@ Useful when strict DNS behavior and naming consistency are desired.
 * Use **`pods hostname`** when you manage pod hostnames explicitly (e.g., with StatefulSets).
 * Avoid **`pods insecure`** due to its lack of validation and vulnerability to spoofing.
 
+<<<<<<< HEAD
+=======
 ```text
 ────────────────────────────────────────────────────────
 BOX — CoreDNS Pod Resolution Modes (Simple Explanation)
@@ -1054,6 +1062,7 @@ and returns it to the Pod.
 
 ────────────────────────────────────────
 ```
+>>>>>>> 8b31efea7da9bad8728e188cecbbc41bc17a1137
 
 
 ---
@@ -1188,5 +1197,9 @@ In this lecture, we covered the architecture of CoreDNS, its role in DNS resolut
 * [Debugging DNS Resolution – Kubernetes Documentation](https://kubernetes.io/docs/tasks/administer-cluster/dns-debugging-resolution/)
 * [Custom DNS Configuration – Kubernetes Documentation](https://kubernetes.io/docs/tasks/administer-cluster/dns-custom-nameservers/)
 * [CoreDNS Plugin: Kubernetes](https://coredns.io/plugins/kubernetes/)
+<<<<<<< HEAD
+
+=======
 * https://kubernetes.io/docs/concepts/services-networking/dns-pod-service/#pods
+>>>>>>> 8b31efea7da9bad8728e188cecbbc41bc17a1137
 ---

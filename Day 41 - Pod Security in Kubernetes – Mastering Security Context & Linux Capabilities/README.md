@@ -467,6 +467,10 @@ This is a **secure pattern** for writing application logs, temp files, or cached
 
 ## 2. Linux Capabilities
 
+Linux operating syste have many capablities(setting a time, mounting, adding interface etc), and it allow us to use or perform operation using those capablities.
+
+But our microservices not need all or some of the capablities which we can remove from the containers to follow POLP(Principle of least privileges)
+
 In Linux, **root** is an all-powerful user — but in reality, root privileges are made up of many distinct low-level permissions called **capabilities**. Kubernetes allows you to selectively manage these capabilities at the **container level**, giving you fine-grained control over what a container can and cannot do.
 
 > Capabilities are configured via the `securityContext.capabilities` field and are only supported **at the container level** — not at the pod level.

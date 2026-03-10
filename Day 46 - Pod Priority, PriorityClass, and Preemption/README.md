@@ -3,10 +3,22 @@
 
 ---
 
+## **Why Pod Priority and Preemption Exist**
+
+In Kubernetes, not all workloads are equal — some are business-critical (e.g., payment processors), while others are non-critical (e.g., dev dashboards, batch jobs).
+
+During a resource crunch, Kubernetes should **favor critical workloads** over less important ones. That’s where **Pod Priority** comes in — it guides the **scheduler** on **which pods to prefer** when scheduling decisions are made.
+
+But what happens when the cluster is already full and a critical workload needs to be scheduled?
+
+That’s when **Preemption** kicks in — Kubernetes **evicts lower-priority pods** to make room for **higher-priority ones**. This makes sure that your critical apps get the resources they need, even at the cost of non-essential workloads.
 In Kubernetes, not all workloads are equally important. Some applications are mission-critical, such as payment processors or core APIs, while others like development dashboards or batch jobs can tolerate delays or temporary disruption.
 This is where Pod Priority and Preemption come into play.
+
 Pod Priority allows you to assign an importance level to different workloads. The Kubernetes scheduler uses this priority when deciding which Pods to schedule first. Higher-priority Pods are placed before lower-priority ones when resources are available.
+
 But what happens if the cluster is already full and a critical workload needs to run?
+
 That’s where Preemption works.
 If there are not enough resources, Kubernetes can evict lower-priority Pods to free up space for higher-priority Pods. This ensures that important applications continue to run, even during resource pressure.
 

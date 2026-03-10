@@ -84,6 +84,8 @@ apt install nfs-common -y && showmount -e <nfs_server_ip> #need to installed on 
 apt install nfs-common -y && showmount -e 
 ```
 ```bash
+<<<<<<< HEAD
+=======
 ████████████  NFS SERVER SETUP (RHEL / CENTOS / ROCKY / ALMA)  ████████████
 
 1️⃣ Install NFS packages
@@ -116,6 +118,7 @@ firewall-cmd --reload
 showmount -e localhost
 ```
 ```bash
+>>>>>>> 8b31efea7da9bad8728e188cecbbc41bc17a1137
 kubectl get pv
 kubectl get pvc
 kubectl get pods

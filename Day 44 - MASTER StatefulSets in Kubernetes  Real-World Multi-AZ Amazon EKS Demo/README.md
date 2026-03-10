@@ -204,6 +204,95 @@ There are **two stages** in setting up a replica:
 1. **Initial Cloning** — Copy the existing 5 GB of data to the replica.
 2. **Continuous Replication** — Keep syncing future writes from the primary.
 
+```bash
+# * This architecture is commonly called **Primary–Replica (Master–Slave) architecture** in databases and distributed systems
+
+# * One node acts as the **Primary (Master)**
+
+#   * Handles all **write operations**
+
+#     * INSERT
+#     * UPDATE
+#     * DELETE
+#   * Ensures data consistency
+#   * Maintains the latest version of the data
+
+# * Multiple nodes act as **Replicas (Read-only nodes)**
+
+#   * Handle only **read operations (SELECT queries)**
+#   * Continuously receive data from the primary
+#   * Stay synchronized through replication (sync or async)
+
+# * How request flow works
+
+#   * Application sends write requests → Primary
+#   * Application sends read requests → Replicas
+#   * A load balancer or application logic decides where to send each request
+
+# * Why this architecture is used
+
+#   * Improves performance
+
+#     * Read-heavy workloads are distributed
+#     * Primary is not overloaded with read traffic
+#     * System handles more concurrent users
+
+#   * Enables horizontal scaling
+
+#     * You can add more replicas
+#     * No need to vertically scale a single powerful server
+
+#   * High availability
+
+#     * If primary fails → one replica is promoted
+#     * Downtime is minimized
+#     * Service continues operating
+
+# * Real-world example (Database use case)
+
+#   * E-commerce application
+
+#     * Product browsing → handled by replicas
+#     * Placing an order → handled by primary
+#   * 90% traffic is reads → replicas absorb load
+#   * 10% traffic is writes → controlled by primary
+
+# * Replication types
+
+#   * Synchronous replication
+
+#     * Primary waits for replica acknowledgment
+#     * Strong consistency
+#     * Slightly slower writes
+
+#   * Asynchronous replication
+
+#     * Primary does not wait
+#     * Faster writes
+#     * Small risk of data loss if primary crashes
+
+# * Failover process
+
+#   * Health check detects primary failure
+#   * Replica with latest data is selected
+#   * Replica is promoted to new primary
+#   * Applications redirect writes to new primary
+
+# * Limitations
+
+#   * Write bottleneck (only one primary)
+#   * Replication lag (in async mode)
+#   * Split-brain risk if failover is misconfigured
+
+# * Commonly used in
+
+#   * MySQL replication setups
+#   * PostgreSQL streaming replication
+#   * MongoDB replica sets
+#   * Cloud-managed databases (RDS, Cloud SQL, etc.)
+
+```
+
 ---
 
 ### 1. Initial Clone
@@ -222,6 +311,8 @@ This is known as **cascading or chained cloning**. It’s useful because:
 * It speeds up parallel provisioning of replicas.
 
 Once the clone is complete, each replica must stay up to date.
+
+Some database implementations also use the direct replication in intial clone phase.
 
 ---
 
@@ -268,6 +359,72 @@ Most databases rely on fixed identifiers when configuring replication, such as:
 
 These settings are stored on the primary. If Replica-1 restarts as `mysql-4`, the primary considers it a **new and unauthorized node**, and won’t replicate to it.
 
+
+---
+
+```bash
+# * **High Availability (HA)** means your application remains accessible even when failures occur
+# * HA always depends on **perspective / failure domain** you are considering
+# * Different HA perspectives
+#   * **Pod-level HA**
+#     * If one Pod crashes → another Pod serves traffic
+#     * Achieved using:
+#       * ReplicaSets / Deployments
+#       * Multiple replicas
+#       * Liveness & Readiness probes
+#     * Example:
+#       * 3 replicas of a web app
+#       * 1 pod dies → 2 still serve traffic
+#     * Protects against:
+#       * Container crash
+#       * Application failure
+
+#   * **Node-level HA**
+#     * If a Kubernetes worker node fails → pods are rescheduled on other nodes
+#     * Achieved using:
+#       * Multiple worker nodes
+#       * Pod anti-affinity
+#       * Proper resource requests
+#     * Protects against:
+#       * Hardware failure
+#       * Node crash
+
+#   * **Zone-level HA**
+#     * If an entire availability zone goes down → app still works
+#     * Achieved using:
+#       * Multi-AZ clusters
+#       * Spreading nodes across zones
+#       * Topology spread constraints
+#     * Protects against:
+#       * Power failure in a data center
+#       * Network outage in one zone
+
+#   * **Region-level HA**
+#     * If an entire region fails → app still accessible
+#     * Achieved using:
+#       * Multi-region deployment
+#       * Global load balancer
+#       * Cross-region database replication
+#     * Protects against:
+#       * Major cloud outage
+#       * Natural disaster affecting region
+
+# * Important concept: **Failure Domain**
+#   * Pod → smallest failure domain
+#   * Node → larger
+#   * Zone → even larger
+#   * Region → largest
+
+# * Real DevOps thinking (interview-level clarity)
+#   * 3 pods on 1 node → Pod HA ✅ but Node HA ❌
+#   * 3 pods on 3 nodes (same zone) → Node HA ✅ but Zone HA ❌
+#   * Nodes across 3 zones → Zone HA ✅
+#   * Multi-region deployment → Region HA ✅
+
+# * HA is not binary (true/false)
+#   * It is about **“HA against what failure?”**
+```
+
 ---
 
 ## Why This Matters in Kubernetes
@@ -284,6 +441,7 @@ Kubernetes **Deployments do not offer these guarantees**. They use ephemeral pod
 To meet these requirements — **stable network identity**, **persistent storage mapping**, and **controlled pod startup sequencing** — Kubernetes offers a purpose-built controller called a **StatefulSet**.
 
 Let’s now explore what makes StatefulSets ideal for managing database workloads.
+
 
 
 ---
@@ -623,6 +781,7 @@ This demo will walk you through deploying a production-aligned **MySQL StatefulS
 This demo is built on an **Amazon EKS cluster** deployed in the `us-east-2` (Ohio) region, spanning **three availability zones**: `us-east-2a`, `us-east-2b`, and `us-east-2c`. The cluster consists of **four worker nodes** based on `t3.small` instances.
 
 > `t3.small` is a cost-effective instance type eligible under **AWS’s \$100 free credits tier** — ideal for learning and experimentation. When provisioning EC2 instances via the AWS Console, unsupported types will appear greyed out, making it easy to identify what fits within the credits limit.
+> By default eksctl create a heavy m series nodes cluster, we can change them in config file.
 
 
 ---
@@ -727,6 +886,8 @@ Check node distribution:
 ```bash
 kubectl get nodes --show-labels | grep topology.kubernetes.io/zone
 ```
+
+AWS add some labels to the nodes automatically -- Hostname, zone, topology, instance type etc
 
 ---
 
