@@ -9,7 +9,8 @@
 
 ### 🗂️ Step 1 — Create an Immutable ConfigMap
 
-```yaml
+```bash
+kubectl apply -f -<<EOF
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -17,6 +18,7 @@ metadata:
 data:
   foo: bar
 immutable: true
+EOF
 ```
 ```yaml
 apiVersion: v1
@@ -153,36 +155,6 @@ Config: bar
 If you later try to change the ConfigMap, Kubernetes blocks it — ensuring your Pod’s configuration remains frozen.
 
 ---
-
-## ⚙️ **Pro Tip: Versioned ConfigMaps**
-
-In production, a **best practice** is to use **versioned ConfigMaps** like this:
-
-```
-demo-config-v1
-demo-config-v2
-```
-
-Then update your Pods or Deployments to reference the new one:
-
-```yaml
-env:
-  - name: APP_NAME
-    valueFrom:
-      configMapKeyRef:
-        name: test-config
-        key: app_name
-```
-
-```bash
-kubectl create configmap demo-config-v2 --from-literal=app_name=demo-v2
-
-kubectl set env deployment/myapp --from=configmap/demo-config-v2
-
-kubectl rollout restart deployment my-app
-```
-
-That allows controlled, predictable updates — without mutating the existing ConfigMap.
 
 ### References:
 - https://spacelift.io/blog/kubernetes-configmap
