@@ -1,0 +1,8 @@
+- https://www.upguard.com/blog/docker-vs-lxc
+- https://www.docker.com/press-release/dotcloud-inc-now-docker-inc/
+- https://www.docker.com/blog/lxc-vs-docker/#:~:text=What%20is%20LXC?,Key%20features%20of%20LXC
+- https://linuxcontainers.org/lxc/
+- https://en.wikipedia.org/wiki/LXC
+- https://www.redhat.com/en/topics/containers/whats-a-linux-container
+- https://www.reddit.com/r/Proxmox/comments/1byls4e/lxcs_what_are_they_good_for/
+- https://kodekloud.com/blog/what-is-the-difference-between-docker-lxc-and-lxd-containers/

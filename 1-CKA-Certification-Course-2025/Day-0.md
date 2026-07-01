@@ -1,0 +1,1 @@
+- L1, L2, and L3 in an engineering context typically refer to levels of technical support or experience, with L1 being entry-level support/junior roles, L2 being intermediate support/mid-level roles, and L3 being expert-level support or senior/lead developers.
