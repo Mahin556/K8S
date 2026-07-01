@@ -1,0 +1,49 @@
+#This configuration allows scaling up by either 50% or 5 pods (whichever is larger) every 60 seconds, while limiting scale-down to either 10% every 60 seconds or 2 pods every 180 seconds (whichever permits fewer removals).
+
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: nginx-deploy
+  # namespace: production
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: nginx-deploy
+    
+  # minReplicas: 3
+  # maxReplicas: 50
+  minReplicas: 1
+  maxReplicas: 10
+
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 50
+
+  # Behavior configuration
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+      - type: Percent
+        value: 50
+        periodSeconds: 60
+      - type: Pods
+        value: 5
+        periodSeconds: 60
+      selectPolicy: Max
+
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Percent
+        value: 10
+        periodSeconds: 60
+      - type: Pods
+        value: 2
+        periodSeconds: 180
+      selectPolicy: Min

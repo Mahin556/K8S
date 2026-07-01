@@ -204,7 +204,7 @@ Simply put:
 - Expose internal mertics API.
 
 These metrics are provided by the **Metrics Server** (explained below).
-
+ 
 #### **Flow with Default Resource Metrics (CPU & Memory)**
 
 ![Alt text](/images/20c.png)
@@ -381,7 +381,8 @@ kubectl apply -f nginx-service.yaml
 ### Step 3️⃣: **Create HPA Object**
 
 ```bash
-kubectl autoscale deployment nginx-deploy --cpu-percent=50 --min=1 --max=5
+kubectl autoscale deployment nginx-deploy --cpu-percent=50 --min=1 --max=5 #--cpu-percent deprecated
+kubectl autoscale deployment nginx-deploy --cpu=50 --min=1 --max=5
 ```
 
 **Explanation:**

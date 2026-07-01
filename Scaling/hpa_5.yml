@@ -1,0 +1,58 @@
+#Use multiple policies to handle different scaling scenarios appropriately.
+
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: worker-pool-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: worker-pool
+  minReplicas: 2
+  maxReplicas: 200
+
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 80
+
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 0  # Scale up immediately
+
+      policies:
+      # For small deployments, add pods aggressively
+      - type: Pods
+        value: 20
+        periodSeconds: 60
+
+      # For large deployments, scale by percentage
+      - type: Percent
+        value: 50
+        periodSeconds: 60
+
+      # Use whichever adds more pods
+      selectPolicy: Max
+
+    scaleDown:
+      stabilizationWindowSeconds: 300
+
+      policies:
+      # Remove at most 10% per minute
+      - type: Percent
+        value: 10
+        periodSeconds: 60
+
+      # But never more than 5 pods per minute
+      - type: Pods
+        value: 5
+        periodSeconds: 60
+
+      # Use whichever removes fewer pods
+      selectPolicy: Min
+
+#This configuration scales up aggressively (adding up to 20 pods or 50%, whichever is more) but scales down conservatively (removing at most 10% or 5 pods, whichever is less).

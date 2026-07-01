@@ -1,0 +1,34 @@
+# For certain workloads, you might want to prevent scale-down entirely during specific time periods.
+
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: no-scale-down-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: critical-service
+  minReplicas: 20
+  maxReplicas: 100
+
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+
+  behavior:
+    scaleUp:
+      policies:
+      - type: Percent
+        value: 100
+        periodSeconds: 60
+
+    scaleDown:
+      # Disable scale-down
+      selectPolicy: Disabled
+
+# With selectPolicy set to Disabled, the HPA will never scale down, only up. This is useful during critical business periods or when you want to manually control scale-down timing.
