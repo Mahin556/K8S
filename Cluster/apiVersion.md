@@ -1,4 +1,3 @@
-
 ## 🔑 What is `apiVersion`?
 
 * Every Kubernetes object (Deployment, Pod, Service, etc.) belongs to an **API group** and a **version**.
