@@ -408,7 +408,8 @@ spec:
         namespaces:
           from: All                       # Allows Routes from any namespace to attach
 ```
-
+![alt text](image.png)
+![alt text](image-1.png)
 ### Apply
 
 ```bash
