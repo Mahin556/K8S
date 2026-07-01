@@ -22,6 +22,9 @@ kubectl logs <pod-name> --timestamps      # Include timestamps on each line of t
 
 kubectl logs <pod_name> --all-containers  # View the logs for all containers in a pod
 
+k logs pod-logging-sidecar --all-containers -f
+
+k logs pod-logging-sidecar -c sidecar
 
 ```
 
