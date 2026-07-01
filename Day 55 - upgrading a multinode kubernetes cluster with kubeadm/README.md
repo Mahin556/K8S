@@ -81,6 +81,8 @@ Kubernetes upgrades are not optional — they are a critical part of maintaining
 
 * **Reminder:** Managed offerings are vendor-tuned; **support is via your cloud provider**, not upstream Kubernetes. Open tickets with the provider for managed clusters.
 
+![alt text](image-1.png)
+
 ---
 
 ## Patch Management Guideline (N / N-1 / N-2)
@@ -228,6 +230,7 @@ Here’s a tightened version of your **High-Level Upgrade Flow (Production)**—
 
   * Snapshot **etcd** (stacked etcd: from a CP node; external etcd: snapshot the etcd cluster).
   * Tarball `/etc/kubernetes` (PKI + manifests) on each control-plane node.
+  * Take backup of any single pod(orphen)
 
 
 * **HA specifics:**
@@ -465,6 +468,7 @@ Expected tail of output:
 
 * At a high level, `kubeadm upgrade` updates the **static pod manifests** (image tags/flags) for control-plane components. Kubelet then restarts them with the new images.
 * By default, `kubeadm upgrade` automatically **renews certificates** it manages. To opt out: `--certificate-renewal=false`.
+* The 
 
 ---
 
