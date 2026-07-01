@@ -52,6 +52,10 @@ So, priority helps Kubernetes decide:
   globalDefault: false
   description: "This class is for high priority workloads."
   ```
+  ```bash
+  #OR
+  kubectl create priorityclass high-priority --value=1000
+  ```
 
 * **Explanation:**
   * `value`: The priority number (integer).
