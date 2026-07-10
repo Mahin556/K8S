@@ -1,0 +1,22 @@
+## Pods are being frequently evicted due to resource pressure on nodes.
+
+### Troubleshooting Steps:
+
+```bash
+# Step 1: Analyze node resource usage
+kubectl top nodes
+
+# Step 2: Describe node for details
+kubectl describe node <node-name>
+
+# Step 3: Adjust pod priorities to protect critical workloads
+# In pod spec:
+priorityClassName: high-priority
+
+# Step 4: Scale up the cluster
+kubectl scale nodes <node-group> --replicas=<desired-count>
+```
+
+### Common Causes:
+- Memory pressure on nodes
+- Insufficient cluster capacity
