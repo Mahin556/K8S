@@ -1,33 +1,47 @@
-In this video we move ahead with Kubernetes concepts 
-
 ## Kubernetes Architecture 
-First we will discuss Kubernetes Architecture and try to understand what happens under the hood when you run `kubectl run nginx --image=nginx`
+First we will discuss Kubernetes Architecture and try to understand what happens under the hood when you run:
+```bash
+kubectl run nginx --image=nginx
+```
 
 ## Create CSR
-openssl genrsa -out saiyam.key 2048
-openssl req -new -key saiyam.key -out saiyam.csr -subj "/CN=saiyam/O=group1"
-
-## Sign CSE with Kubernetes CA
-cat saiyam.csr | base64 | tr -d '\n'
-
+```bash
+openssl genrsa -out mahin.key 2048 && ls
+openssl req -new -key mahin.key -out mahin.csr -subj "/CN=mahin/O=group1" && ls
 ```
+## Sign CSE with Kubernetes CA
+```bash
+cat mahin.csr | base64 | tr -d '\n'
+```
+
+```bash
+kubectl apply -f -<<EOF
 apiVersion: certificates.k8s.io/v1
 kind: CertificateSigningRequest
 metadata:
-  name: saiyam
+  name: mahin
 spec:
-  request: BASE64_CSR
+  request: $(cat mahin.csr | base64 | tr -d '\n')
   signerName: kubernetes.io/kube-apiserver-client
   usages:
   - client auth
+EOF
 ```
-kubectl apply -f csr.yaml
-kubectl certificate approve saiyam
+```bash
+kubectl get certificatesigningrequests
+#or
+kubectl get csr
+kubectl get certificate --all-namespaces
 
-kubectl get csr saiyam -o jsonpath='{.status.certificate}' | base64 --decode > saiyam.crt
+kubectl certificate approve mahin
+
+kubectl get csr mahin -o jsonpath='{.status.certificate}' | base64 --decode > mahin.crt && ls
+```
+
 
 ## Role and role binding
-```
+```bash
+kubectl apply -f -<<EOF
 kind: Role
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
@@ -45,52 +59,110 @@ metadata:
   namespace: default
 subjects:
 - kind: User
-  name: saiyam
+  name: mahin
   apiGroup: rbac.authorization.k8s.io
 roleRef:
   kind: Role
   name: pod-reader
   apiGroup: rbac.authorization.k8s.io
+EOF
 ```
-### setup kubeconfig
-kubectl config set-credentials saiyam --client-certificate=saiyam.crt --client-key=saiyam.key
-kubectl config get-contexts
-kubectl config set-context saiyam-context --cluster=kubernetes --namespace=default --user=saiyam
-kubectl config use-context saiyam-context
+```bash
+kubectl get role -n default
+kubectl get rolebinding -n default
+```
 
+### setup kubeconfig
+```bash
+kubectl config view
+kubectl config view --raw
+
+kubectl config set-credentials mahin --client-certificate=mahin.crt --client-key=mahin.key
+kubectl config get-contexts
+kubectl config set-context mahin-context --cluster=kubernetes --namespace=default --user=mahin
+kubectl config use-context mahin-context
+
+# New config file
+kubectl config set-credentials mahin --client-certificate=mahin.crt --client-key=mahin.key --embed-certs=true --kubeconfig=config && cat config
+
+APISERVER=$(kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}') && echo $APISERVER
+
+kubectl config view --raw -o jsonpath='{.clusters[0].cluster.certificate-authority-data}' | base64 -d > ca.crt  && cat ca.crt
+
+kubectl config set-cluster mahin --server=$(echo ${APISERVER}) --certificate-authority=ca.crt --embed-certs=true --kubeconfig config && cat config
+
+kubectl config set-context mahin@kubernetes --cluster=mahin --user=mahin --namespace=default --kubeconfig config && cat config 
+
+kubectl config get-contexts --kubeconfig config
+
+kubectl config use-context mahin@kubernetes --kubeconfig config && kubectl config get-contexts --kubeconfig config
+
+kubectl get pod --kubeconfig config
+
+kubectl auth whoami --kubeconfig config
+
+kubectl config set-context --current --namespace kube-system
+```
 
 ### Merging multiple KubeConfig files
+```bash
 export KUBECONFIG=/path/to/first/config:/path/to/second/config:/path/to/third/config
+```
 
-
-
-========================================
-
-Create a file deploy.json
-``` 
+### Create a file deploy.json
+```bash 
 kubectl create deployment nginx --image=nginx --dry-run=client -o json > deploy.json
 kubectl run nginx --image=nginx --dry-run=client -o json
-
 ```
 
-SA creation
-```
-kubectl create serviceaccount sam --namespace default
-kubectl create clusterrolebinding sam-clusteradmin-binding --clusterrole=cluster-admin --serviceaccount=default:sam
-kubectl create token sam
-TOKEN=outputfromabove
-APISERVER=$(kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}')
-List deployments
+### SA creation
+```bash
+kubectl create serviceaccount mahin --namespace default
+
+kubectl create clusterrolebinding mahin-clusteradmin-binding --clusterrole=cluster-admin --serviceaccount=default:mahin
+
+TOKEN=$(kubectl create token mahin) && echo ${TOKEN}
+
+APISERVER=$(kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}') && echo ${APISERVER}
+
+#List deployments
 curl -X GET $APISERVER/apis/apps/v1/namespaces/default/deployments -H "Authorization: Bearer $TOKEN" -k
-Create Deployment
+
+#Create Deployment
 curl -X POST $APISERVER/apis/apps/v1/namespaces/default/deployments \
   -H "Authorization: Bearer $TOKEN" \
   -H 'Content-Type: application/json' \
   -d @deploy.json \
   -k
 
-List pods 
+#List pods 
 curl -X GET $APISERVER/api/v1/namespaces/default/pods \
   -H "Authorization: Bearer $TOKEN" \
   -k  
+
+curl -X GET $APISERVER/api/v1 \
+  -H "Authorization: Bearer $TOKEN" \
+  -k  
+
+curl -X GET $APISERVER/api \
+  -H "Authorization: Bearer $TOKEN" \
+  -k  
+
+curl -X GET $APISERVER/apis \
+  -H "Authorization: Bearer $TOKEN" \
+  -k 
+
+curl -X GET $APISERVER/apis/apps \
+  -H "Authorization: Bearer $TOKEN" \
+  -k  
+
+curl -X GET $APISERVER/apis/apps/v1 \
+  -H "Authorization: Bearer $TOKEN" \
+  -k  
+```
+
+```bash
+kubectl proxy
+
+curl localhost:8001/apis
 ```
