@@ -20,6 +20,10 @@ kubectl get pods -w
 kubectl apply -f downwardapipod.yaml
 
 
+![alt text](image.png)
+
+It is use full when youu upgrade your node and there is important service which handle lot of traffic and many services are dependent on that service so that service is basically very critical for application we can loss the replica count of that service, in that we can configure PDB that prevent voluntery disruption of pod(during delete, drain, upgrade operations), if not set it can cause a a downtime, slowness, seviour impact on user experience etc
+
 ### QOS 
 kubectl get pods nginx-guaranteed -oyaml | grep qos
 
