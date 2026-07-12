@@ -1,3 +1,8 @@
+### Reference:
+- https://kubernetes.io/docs/concepts/scheduling-eviction/scheduler-perf-tuning/
+
+![alt text](image.png)
+
 ## Namespaces 
 
 ```
@@ -30,7 +35,18 @@ kubectl get pods -l 'app in (test,bootcamp)'
 ```
 
 ## Priority class 
+```bash
+kubectl cordon controlplane
 kubectl create deploy nginx --image=nginx --replicas=110
+kubectl get po | grep -i pending
+kubectl describe pod <pod_name>
+```
+
+![alt text](image-2.png)
+
+```bash
+
+```
 
 ## topolgy constraint
 deploy yaml 
@@ -38,12 +54,16 @@ deploy yaml
 kubectl scale deploy demo-app --replicas 6
 kubectl cordon controlplane
 kubectl scale  deploy demo-app --replicas 7
+kubectl scale  deploy demo-app --replicas 8 #This 8th pod be in pending
 
 ```
+![alt text](image-1.png)
 
 ## Node affinity
 
 kubectl label node controlplane topology.kubernetes.io/region=us-east-1
+
+![alt text](image-3.png)
 
 ## taints and tolerations
 kubectl taint nodes node01 app=demo:NoSchedule
