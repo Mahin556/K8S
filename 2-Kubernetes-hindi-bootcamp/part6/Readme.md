@@ -3,6 +3,16 @@
 Create ReplicaSet
 Delete RS
 
+```bash
+k apply -f nginx-rs.yaml
+k apply -f pod-rs.yaml # Terminated
+```
+```bash
+k apply -f pod-rs.yaml
+k apply -f nginx-rs.yaml #Only create 2 replicas
+
+```
+
 ```
 kubectl proxy --port=8080
 
@@ -28,7 +38,10 @@ curl -X DELETE 'http://localhost:8080/apis/apps/v1/namespaces/default/replicaset
 ## Deployments 
 Create deployment
 ```
+kubectl create deploy bootcamp --image nginx --replicas 3 --port 80 --dry-run=client -oyaml > deploy.yaml #use in exam to get deploy manifest
+
 kubectl create deploy bootcamp --image nginx --replicas 3 --port 80
+kubectl scale deploy bootcamp --replicas=5
 kubectl rollout status deployment bootcamp
 ```
 Update image 

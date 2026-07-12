@@ -90,3 +90,6 @@ data:
 docker buildx build --platform linux/amd64 -t saiyam911/bootcamp-demo:v1 . --push
 kubectl create secret docker-registry pullsec --docker-username saiyam911 --docker-password $SECRET --docker-email saiyam911@gmail.com
 ```
+```bash
+k cluster-info | head -n 1 | awk '{print $7}'
+```
