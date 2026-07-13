@@ -5,6 +5,9 @@
 kubectl apply --server-side -f \
   https://raw.githubusercontent.com/cloudnative-pg/cloudnative-pg/release-1.23/releases/cnpg-1.23.1.yaml
 ```
+
+- After 10 years of acive development in k8s we have better solution to manage db/statfull application istead of reli on statefull sets
+
 ## create Database cluster
 `kubectl apply -f postgres-cluster.yaml`
 ## Create secret 
@@ -30,6 +33,12 @@ CREATE TABLE goals (
 ===============================================
 ## Install CERT MANAGER
 kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.14.5/cert-manager.yaml
+
+k get certificateissuer
+k get certificate
+k get certificate -oyaml #look for conditions 
+k get challenges
+k describe challenges
 
 ## Install nginx ingress controller 
 kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.9.4/deploy/static/provider/cloud/deploy.yaml

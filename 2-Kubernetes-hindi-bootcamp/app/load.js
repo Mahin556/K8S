@@ -32,3 +32,5 @@ function demo() {
 export default function () {
     demo()
 }
+
+// k6 run load.js
