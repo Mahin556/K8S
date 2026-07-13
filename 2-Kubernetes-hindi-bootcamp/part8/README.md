@@ -60,8 +60,8 @@ kubectl expose pod nginx --port 80
 kubectl get ep
 
 ```
-
-
+![alt text](image.png)
+![alt text](image-1.png)
 
 ##Headless Service
 ```
@@ -110,7 +110,7 @@ Deploy all in Ingress folder after creating below config map
 `kubectl create configmap nginx-config --from-file=nginx.conf`
 
 ssh onto the node where the pod is deployed and the change the /etc/hosts file.
-
+![alt text](image-2.png)
 
 
 ## Nodeport check via iptables
