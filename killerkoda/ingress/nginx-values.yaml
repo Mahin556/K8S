@@ -1,0 +1,26 @@
+# Custom values for nginx-ingress
+controller:
+  replicaCount: 3
+  
+  resources:
+    limits:
+      cpu: 100m
+      memory: 128Mi
+    requests:
+      cpu: 50m
+      memory: 64Mi
+  
+  service:
+    type: NodePort
+    nodePorts:
+      http: 30080
+      https: 30443
+    annotations:
+      service.kubernetes.io/app-name: "nginx-ingress-controller"
+      
+  metrics:
+    enabled: true
+    
+  podAnnotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "9113"

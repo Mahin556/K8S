@@ -1,0 +1,40 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: az1-pod
+  namespace: 012963bd
+spec:
+  # TOLERATION ADDED HERE: Allows the pod to be scheduled on the controlplane
+  tolerations:
+  - key: "node-role.kubernetes.io/control-plane"
+    operator: "Exists"
+    effect: "NoSchedule"
+  affinity:
+    nodeAffinity:
+      # Hard requirement: MUST run on the controlplane node
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: kubernetes.io/hostname
+            operator: In
+            values:
+            - controlplane
+      # Soft preferences: schedule to these zones if possible
+      preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 80
+        preference:
+          matchExpressions:
+          - key: availability-zone
+            operator: In
+            values:
+            - zone1
+      - weight: 20
+        preference:
+          matchExpressions:
+          - key: availability-zone
+            operator: In
+            values:
+            - zone2
+  containers:
+  - name: nginx
+    image: nginx:1.24.0

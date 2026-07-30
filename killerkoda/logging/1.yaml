@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pod-logging
+  namespace: default
+spec:
+  containers:
+  - name: logging-container
+    image: busybox
+    command: ["/bin/sh", "-c", "while true; do echo logging at $(date) ; sleep 5; done"]

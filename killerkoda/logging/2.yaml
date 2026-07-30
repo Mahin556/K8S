@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pod-logging-sidecar
+  namespace: default
+spec:
+  containers:
+  - name: main-container
+    image: busybox
+    command: ['/bin/sh', '-c', 'while true; do printf "main container at %s\n\n" "$(date)" >> /var/log/main.log ; sleep 1 ; done']
+    volumeMounts:
+    - name: logging-volume
+      mountPath: /var/log
+  - name: logging-sidecar
+    image: busybox
+    command: ['/bin/sh', '-c', 'tail -f /var/log/main.log']
+    volumeMounts:
+    - name: logging-volume
+      mountPath: /var/log
+  volumes:
+  - name: logging-volume
+    emptyDir: {}

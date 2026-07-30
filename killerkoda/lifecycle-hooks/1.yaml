@@ -1,0 +1,37 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: lifecycle-demo
+spec:
+  containers:
+    - name: demo-container
+      image: busybox:latest
+
+      # Keep the container running
+      command:
+        - /bin/sh
+        - -c
+        - sleep 1000
+
+      lifecycle:
+        # Runs immediately after the container starts
+        postStart:
+          exec:
+            command:
+              - /bin/sh
+              - -c
+              - |
+                echo "Container started!" >> /tmp/start.log
+
+        # Runs just before the container is terminated
+        preStop:
+          exec:
+            command:
+              - /bin/sh
+              - -c
+              - |
+                echo "Container stopping in 10 seconds..." >> /tmp/stop.log
+                sleep 10
+
+# k exec -it lifecycle-demo -- cat /tmp/start.log
+# k exec -it lifecycle-demo -- cat /tmp/stop.log
